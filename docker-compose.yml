@@ -1,0 +1,44 @@
+services:
+  db:
+    image: cockroachdb/cockroach:v25.4.0
+    command:
+      - start-single-node
+      - --insecure
+      - --listen-addr=0.0.0.0:26257
+      - --http-addr=0.0.0.0:8080
+      - --store=/cockroach/cockroach-data
+      - --cache=128MiB
+      - --max-sql-memory=128MiB
+    ports:
+      - "127.0.0.1:26257:26257"
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - landledger-data:/cockroach/cockroach-data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "cockroach",
+          "sql",
+          "--insecure",
+          "--host=localhost:26257",
+          "--execute=SELECT 1",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+  db-init:
+    image: cockroachdb/cockroach:v25.4.0
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+      [
+        "sql",
+        "--insecure",
+        "--host=db:26257",
+        "--execute=CREATE DATABASE IF NOT EXISTS landledger;",
+      ]
+volumes:
+  landledger-data:
