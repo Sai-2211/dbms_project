@@ -61,6 +61,14 @@ Run `npm run test:integration` against the local CockroachDB instance. The tests
 - Two competing sales of the same share cannot both be approved.
 - Partial transfers retain valid co-ownership.
 
+## 8. Explore the live ER diagram
+
+Open **ER diagram**. The badge shows **18 tables · 37 relationships**. Select **Transactions** in the table selector, then enable **Related tables only** to isolate its neighbours. Drag a table, pan/zoom, inspect the selected table's columns and constraints, and choose **Fit diagram** or **Reset layout**. **Export schema** downloads the live catalogue as JSON.
+
+Each arrow runs from the child foreign-key column to the parent key. A required foreign key has parent participation **1**; a nullable foreign key has **0..1**. In this schema the parent can have **0..N** child records. The diagram reads actual database constraints; it does not infer one-to-one relationships from partial indexes or invent inheritance hierarchies for property categories.
+
+![Interactive ER explorer focused on transactions](images/er-diagram.png)
+
 ## Suggested explanation to the professor
 
 “Our frontend collects and displays land-registration records through an Express API connected to CockroachDB. We chose distributed SQL because the scenario has strongly related records and concurrent registration workflows across multiple offices. The main demonstration is an atomic ownership transfer: all related ownership, transaction, mutation and audit updates succeed together or roll back together. Our single-node setup demonstrates these transaction guarantees; a separate multi-node deployment would be needed to demonstrate node-failure resilience.”

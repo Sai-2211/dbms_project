@@ -13,6 +13,9 @@ A React web application for the **Digital Land Registration and Property Managem
 - Service applications, generated encumbrance-certificate snapshots, user accounts and an audit trail through the workspace menu.
 - Seven access roles: administrator, owner, survey officer, valuation officer, sub-registrar, bank verifier and auditor.
 - Serializable transaction retries, foreign keys, validation, protected finalized records, password hashing and HTTP-only session cookies.
+- Separate interactive **ER diagram** tab: 18 tables and 37 foreign-key relationships read from the live database, with draggable tables, cardinalities, column/constraint inspection, related-table filtering and JSON export.
+
+![LandLedger dashboard](docs/images/dashboard.png)
 
 This is a student demonstration application. It does not perform real tax payments, mortgage approvals or legal registration. All seeded records and example documents are fictional. Amounts use INR; land areas use square metres.
 
@@ -83,7 +86,9 @@ The seed creates 24 fictional properties, nine owners, four districts and exampl
 
 ## Demonstrate the project
 
-Start with [the step-by-step demo guide](docs/DEMO_GUIDE.md). It covers a new registration, a transfer, verification, joint ownership, rollback and role access. The dashboard is populated from database queries, rather than hardcoded counts.
+Start with [the step-by-step demo guide](docs/DEMO_GUIDE.md). It covers a new registration, a transfer, verification, joint ownership, rollback, role access and the ER explorer. The dashboard is populated from database queries, rather than hardcoded counts.
+
+Read [the detailed architecture report](docs/ARCHITECTURE.md) for the frontend, backend, database connection and transfer workflow. [The verification report](docs/VERIFICATION_REPORT.md) contains all 50 passing test cases, security checks, browser evidence and practical limitations.
 
 ## Schema approval
 
@@ -99,7 +104,7 @@ npm run test:integration
 npm run build
 ```
 
-The integration tests require a reachable CockroachDB instance and a development SQL user allowed to create databases. Each run creates its own `landledger_test_*` database and removes only that test database afterward. The tests exercise invalid foreign keys, full rollback, conflicting transfers, joint ownership, document checks, role access, status filters and file upload/download.
+The integration tests require a reachable CockroachDB instance and a development SQL user allowed to create databases. Each run creates its own `landledger_test_*` database and removes only that test database afterward. The tests exercise all 37 foreign keys, full rollback, conflicting transfers, joint ownership, document checks, role access, status filters, SQL injection, escaped HTML, upload/download, certificates, surveys and live schema accuracy. The final suites passed 11 unit and 39 integration tests. GitHub Actions repeats the checks on each push and pull request.
 
 The application never substitutes SQLite, PostgreSQL, browser storage or mock data when CockroachDB is unavailable. The interface displays a connection or operation error.
 
@@ -136,6 +141,8 @@ server/index.ts       API routes, file handling and session authorization
 server/business.ts    Ownership approval, validation and audit operations
 server/resources.ts   Form metadata and module permissions
 server/db.ts          Database connection and serializable retry wrapper
+server/catalog.ts     Live column, key and relationship metadata for the ER tab
+src/SchemaExplorer.tsx Interactive ER diagram and schema inspector
 server/seed.ts        Fictional demonstration records
 tests/                Unit and isolated database/API tests
 docs/                 ER diagram, approval record and professor/demo guides

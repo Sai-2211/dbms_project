@@ -1,0 +1,29 @@
+{
+  "verified_on": "2026-10-10",
+  "application_commit": "a112d516554b495f007e865dbf7a48206d933882",
+  "database": "CockroachDB 25.4.0",
+  "local_unit": {
+    "passed": 11,
+    "failed": 0,
+    "skipped": 0
+  },
+  "local_integration": {
+    "passed": 39,
+    "failed": 0,
+    "skipped": 0
+  },
+  "build": "passed",
+  "dependency_audit_known_vulnerabilities": 0,
+  "live_catalog": {
+    "tables": 18,
+    "foreign_keys": 37
+  },
+  "standalone_smoke": "passed",
+  "github_ci": {
+    "run_id": 38046599242,
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/Sai-2211/dbms_project/actions/runs/38046599242"
+  },
+  "scope": "Course demonstration; representative regression/security checks, not exhaustive security certification or production/failover validation."
+}

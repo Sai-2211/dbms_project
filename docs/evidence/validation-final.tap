@@ -1,0 +1,80 @@
+
+> landledger@1.0.0 test
+> node --import tsx --test tests/*.test.ts
+
+TAP version 13
+# Subtest: dates reject impossible days and accept leap days
+ok 1 - dates reject impossible days and accept leap days
+  ---
+  duration_ms: 0.682084
+  type: 'test'
+  ...
+# Subtest: shares preserve exact decimal values and reject excess precision
+ok 2 - shares preserve exact decimal values and reject excess precision
+  ---
+  duration_ms: 0.838459
+  type: 'test'
+  ...
+# Subtest: approval fields cannot be set by a generic edit
+ok 3 - approval fields cannot be set by a generic edit
+  ---
+  duration_ms: 0.057125
+  type: 'test'
+  ...
+# Subtest: money and tax years are validated rather than silently rounded
+ok 4 - money and tax years are validated rather than silently rounded
+  ---
+  duration_ms: 0.126041
+  type: 'test'
+  ...
+# Subtest: bank and field officer roles have bounded write access
+ok 5 - bank and field officer roles have bounded write access
+  ---
+  duration_ms: 0.2055
+  type: 'test'
+  ...
+# Subtest: password hashes are salted and sessions reject tampering
+ok 6 - password hashes are salted and sessions reject tampering
+  ---
+  duration_ms: 75.328583
+  type: 'test'
+  ...
+# Subtest: all editable fields reject missing required values, wrong primitive types and protected keys
+ok 7 - all editable fields reject missing required values, wrong primitive types and protected keys
+  ---
+  duration_ms: 2.681083
+  type: 'test'
+  ...
+# Subtest: decimal boundary inputs reject infinities, negative, exponential and overlarge values
+ok 8 - decimal boundary inputs reject infinities, negative, exponential and overlarge values
+  ---
+  duration_ms: 0.2155
+  type: 'test'
+  ...
+# Subtest: text trims whitespace and preserves Unicode and HTML as plain data
+ok 9 - text trims whitespace and preserves Unicode and HTML as plain data
+  ---
+  duration_ms: 0.184084
+  type: 'test'
+  ...
+# Subtest: malformed password hashes and extra session token components fail safely
+ok 10 - malformed password hashes and extra session token components fail safely
+  ---
+  duration_ms: 0.258292
+  type: 'test'
+  ...
+# Subtest: CSV exports neutralize formulas including leading whitespace and quote cells
+ok 11 - CSV exports neutralize formulas including leading whitespace and quote cells
+  ---
+  duration_ms: 0.093792
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 246.868709
