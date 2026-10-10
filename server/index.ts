@@ -8,6 +8,7 @@ import { existsSync } from "node:fs";
 import { randomUUID, createHash } from "node:crypto";
 import pg from "pg";
 import { config, checkConfig } from "./config.js";
+import { readSchema } from "./catalog.js";
 import { pool, transaction, assertCockroach } from "./db.js";
 import {
   authenticate,
@@ -35,6 +36,7 @@ import {
   registrar,
   today,
   validateRelations,
+  updateSurveyBoundary,
 } from "./business.js";
 
 pg.types.setTypeParser(1082, (value) => value);
@@ -93,13 +95,11 @@ app.get("/api/health", async (_req, res) => {
     await assertCockroach();
     res.json({ status: "connected", database: "CockroachDB" });
   } catch {
-    res
-      .status(503)
-      .json({
-        status: "disconnected",
-        database: "CockroachDB",
-        error: "CockroachDB is unavailable. Check the database connection.",
-      });
+    res.status(503).json({
+      status: "disconnected",
+      database: "CockroachDB",
+      error: "CockroachDB is unavailable. Check the database connection.",
+    });
   }
 });
 app.post("/api/auth/login", loginLimiter, async (req, res) => {
@@ -131,7 +131,19 @@ app.post("/api/auth/logout", (_req, res) => {
   res.json({ ok: true });
 });
 app.use("/api", authenticate);
+app.use(
+  "/api",
+  rateLimit({
+    windowMs: 60_000,
+    limit: 240,
+    keyGenerator: (req) => req.actor.id,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: { error: "Too many requests. Please wait a minute." },
+  }),
+);
 app.get("/api/auth/me", (req, res) => res.json(req.actor));
+app.get("/api/schema", async (_req, res) => res.json(await readSchema()));
 app.get("/api/metadata", (req, res) =>
   res.json(
     resources
@@ -166,6 +178,10 @@ app.get("/api/lookups/:key", async (req, res) => {
       active: row.active,
       district_id: row.district_id,
       office_id: row.office_id,
+      property_id: row.property_id,
+      transaction_type: row.transaction_type,
+      service_type: row.service_type,
+      status: row.status,
     })),
   );
 });
@@ -255,14 +271,23 @@ app.get("/api/records/:key", async (req, res) => {
     typeof req.query.q === "string" ? req.query.q.trim().slice(0, 200) : "";
   if (q) {
     values.push(`%${q}%`);
+    const searchParameter = values.length;
     const searchable =
-      req.actor.role === "bank_verifier" ||
-      (req.actor.role === "owner" && r.key === "owners")
+      r.key === "owners" && ["bank_verifier", "owner"].includes(req.actor.role)
         ? [r.label]
         : r.columns;
-    conditions.push(
-      `(${searchable.map((k) => `CAST(r.${k} AS STRING) ILIKE $${values.length}`).join(" OR ")})`,
+    const searchParts = searchable.map(
+      (k) => `CAST(r.${k} AS STRING) ILIKE $${values.length}`,
     );
+    for (const field of r.fields.filter((f) => f.reference)) {
+      const related = resourceMap.get(field.reference!);
+      if (!related || !canRead(req.actor, related)) continue;
+      const relatedScope = scope(req.actor, related, values, "lookup");
+      searchParts.push(
+        `EXISTS(SELECT 1 FROM ${related.key} lookup WHERE lookup.id=r.${field.key} AND ${relatedScope} AND CAST(lookup.${related.label} AS STRING) ILIKE $${searchParameter})`,
+      );
+    }
+    conditions.push(`(${searchParts.join(" OR ")})`);
   }
   for (const key of ["property_id", "transaction_id", "owner_id"]) {
     if (req.query[key] && r.fields.some((f) => f.key === key)) {
@@ -360,20 +385,27 @@ app.post("/api/records/:key", async (req, res) => {
         submitted_date: today(),
         notes: "Property registration submitted through the owner portal.",
       });
-    if (req.actor.role === "owner" && r.key === "transactions")
-      await insert(client, "applications", {
-        property_id: row.property_id,
-        applicant_owner_id: req.actor.owner_id,
-        service_type:
-          row.transaction_type === "registration" ? "registration" : "transfer",
-        submitted_date: today(),
-        transaction_id: row.id,
-      });
-    if (r.key === "surveys" && row.survey_status === "completed")
-      await client.query(
-        "UPDATE properties SET area=$1,boundary_details=$2,updated_at=now() WHERE id=$3",
-        [row.survey_area, row.boundary_details, row.property_id],
+    if (req.actor.role === "owner" && r.key === "transactions") {
+      const service =
+        row.transaction_type === "registration" ? "registration" : "transfer";
+      const linked = await client.query(
+        "UPDATE applications SET transaction_id=$1,updated_at=now() WHERE property_id=$2 AND applicant_owner_id=$3 AND service_type=$4 AND transaction_id IS NULL AND status IN ('submitted','under_review') RETURNING id",
+        [row.id, row.property_id, req.actor.owner_id, service],
       );
+      if (!linked.rows.length)
+        await insert(client, "applications", {
+          property_id: row.property_id,
+          applicant_owner_id: req.actor.owner_id,
+          service_type:
+            row.transaction_type === "registration"
+              ? "registration"
+              : "transfer",
+          submitted_date: today(),
+          transaction_id: row.id,
+        });
+    }
+    if (r.key === "surveys" && row.survey_status === "completed")
+      await updateSurveyBoundary(client, row);
     if (r.key === "certificates" && row.application_id)
       await client.query(
         "UPDATE applications SET status='approved',reviewing_officer_id=$1,updated_at=now() WHERE id=$2",
@@ -421,10 +453,7 @@ app.patch("/api/records/:key/:id", async (req, res) => {
       values,
     );
     if (r.key === "surveys" && rows[0].survey_status === "completed")
-      await client.query(
-        "UPDATE properties SET area=$1,boundary_details=$2,updated_at=now() WHERE id=$3",
-        [rows[0].survey_area, rows[0].boundary_details, rows[0].property_id],
-      );
+      await updateSurveyBoundary(client, rows[0]);
     await audit(client, req.actor, "update", r.key, old.id, { fields: keys });
     return redact(req.actor, r, rows[0]);
   });
@@ -584,6 +613,11 @@ app.post("/api/records/:key/:id/review", async (req, res) => {
             ];
     }
     const result = (await client.query(sql, values)).rows[0];
+    if (r.key === "transactions" && action === "reject")
+      await client.query(
+        "UPDATE applications SET status='rejected',reviewing_officer_id=$1,updated_at=now() WHERE transaction_id=$2 AND status IN ('submitted','under_review')",
+        [officer.id, row.id],
+      );
     await audit(client, req.actor, action, r.key, row.id);
     return result;
   });
@@ -594,88 +628,118 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024, files: 1 },
 });
-app.post("/api/documents/:id/file", upload.single("file"), async (req, res) => {
-  validateId(req.params.id);
-  demand(
-    canWrite(req.actor, resourceMap.get("documents")!),
-    "You cannot upload documents.",
-    403,
-  );
-  demand(req.file, "Select a PDF, PNG or JPEG (up to 10 MB).");
-  const bytes = req.file.buffer;
-  const format =
-    bytes.subarray(0, 5).toString() === "%PDF-"
-      ? "pdf"
-      : bytes
-            .subarray(0, 8)
-            .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
-        ? "png"
-        : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255
-          ? "jpg"
-          : null;
-  demand(format, "Only PDF, PNG and JPEG file contents are accepted.");
-  const fileKey = `${randomUUID()}.${format}`;
-  await mkdir(config.uploads, { recursive: true });
-  await writeFile(path.join(config.uploads, fileKey), bytes, {
-    flag: "wx",
-    mode: 0o600,
-  });
-  let oldKey: string | undefined;
-  try {
-    await transaction(async (client) => {
-      const document = await accessible(
-        client,
-        req.actor,
-        resourceMap.get("documents")!,
-        String(req.params.id),
-        true,
-      );
-      demand(
-        document.verification_status === "pending",
-        "A verified or rejected document cannot be replaced.",
-        409,
-      );
-      if (document.transaction_id)
+const uploadLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 20,
+  keyGenerator: (req) => req.actor.id,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Too many uploads. Please wait a minute." },
+});
+app.post(
+  "/api/documents/:id/file",
+  uploadLimiter,
+  (req, _res, next) => {
+    validateId(req.params.id);
+    demand(
+      canWrite(req.actor, resourceMap.get("documents")!),
+      "You cannot upload documents.",
+      403,
+    );
+    next();
+  },
+  upload.single("file"),
+  async (req, res) => {
+    validateId(req.params.id);
+    demand(
+      canWrite(req.actor, resourceMap.get("documents")!),
+      "You cannot upload documents.",
+      403,
+    );
+    demand(req.file, "Select a PDF, PNG or JPEG (up to 10 MB).");
+    const bytes = req.file.buffer;
+    const format =
+      bytes.subarray(0, 5).toString() === "%PDF-"
+        ? "pdf"
+        : bytes
+              .subarray(0, 8)
+              .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+          ? "png"
+          : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255
+            ? "jpg"
+            : null;
+    demand(format, "Only PDF, PNG and JPEG file contents are accepted.");
+    const fileKey = `${randomUUID()}.${format}`;
+    await mkdir(config.uploads, { recursive: true });
+    await writeFile(path.join(config.uploads, fileKey), bytes, {
+      flag: "wx",
+      mode: 0o600,
+    });
+    let oldKey: string | undefined;
+    try {
+      await transaction(async (client) => {
+        const document = await accessible(
+          client,
+          req.actor,
+          resourceMap.get("documents")!,
+          String(req.params.id),
+          true,
+        );
         demand(
-          (
-            await client.query("SELECT status FROM transactions WHERE id=$1", [
-              document.transaction_id,
-            ])
-          ).rows[0]?.status === "pending",
-          "The transaction is finalized.",
+          document.verification_status === "pending",
+          "A verified or rejected document cannot be replaced.",
           409,
         );
-      oldKey = document.file_key;
-      await client.query(
-        "UPDATE documents SET file_key=$1,original_filename=$2,media_type=$3,file_size=$4,sha256=$5,updated_at=now() WHERE id=$6",
-        [
-          fileKey,
-          path.basename(req.file!.originalname).slice(0, 200),
-          format === "pdf"
-            ? "application/pdf"
-            : format === "png"
-              ? "image/png"
-              : "image/jpeg",
-          bytes.length,
-          createHash("sha256").update(bytes).digest("hex"),
-          document.id,
-        ],
-      );
-      await audit(client, req.actor, "upload", "documents", document.id, {
-        format,
-        bytes: bytes.length,
+        if (document.transaction_id)
+          demand(
+            (
+              await client.query(
+                "SELECT status FROM transactions WHERE id=$1",
+                [document.transaction_id],
+              )
+            ).rows[0]?.status === "pending",
+            "The transaction is finalized.",
+            409,
+          );
+        oldKey = document.file_key;
+        await client.query(
+          "UPDATE documents SET file_key=$1,original_filename=$2,media_type=$3,file_size=$4,sha256=$5,updated_at=now() WHERE id=$6",
+          [
+            fileKey,
+            path.basename(req.file!.originalname).slice(0, 200),
+            format === "pdf"
+              ? "application/pdf"
+              : format === "png"
+                ? "image/png"
+                : "image/jpeg",
+            bytes.length,
+            createHash("sha256").update(bytes).digest("hex"),
+            document.id,
+          ],
+        );
+        await audit(client, req.actor, "upload", "documents", document.id, {
+          format,
+          bytes: bytes.length,
+        });
       });
-    });
-  } catch (error) {
-    await unlink(path.join(config.uploads, fileKey)).catch(() => {});
-    throw error;
-  }
-  if (oldKey)
-    await unlink(path.join(config.uploads, path.basename(oldKey))).catch(
-      () => {},
-    );
-  res.json({ ok: true });
-});
+    } catch (error) {
+      await unlink(path.join(config.uploads, fileKey)).catch(() => {});
+      throw error;
+    }
+    if (
+      oldKey &&
+      !(
+        await pool.query("SELECT id FROM documents WHERE file_key=$1 LIMIT 1", [
+          oldKey,
+        ])
+      ).rows.length
+    )
+      await unlink(path.join(config.uploads, path.basename(oldKey))).catch(
+        () => {},
+      );
+    res.json({ ok: true });
+  },
+);
 app.get("/api/documents/:id/file", async (req, res) => {
   validateId(req.params.id);
   const document = await transaction((client) =>
@@ -819,15 +883,29 @@ app.use(
       "40001": "The record changed during processing. Please try again.",
       "22P02": "A value has an invalid format.",
       LIMIT_FILE_SIZE: "The file exceeds the 10 MB limit.",
+      LIMIT_FILE_COUNT: "Upload one file at a time.",
+      LIMIT_UNEXPECTED_FILE: "Use the file upload field for one document.",
+      LIMIT_FIELD_VALUE: "An upload field is too large.",
     };
     if (e.code && messages[e.code]) {
       res
-        .status(e.code === "LIMIT_FILE_SIZE" ? 413 : 409)
+        .status(
+          e.code === "LIMIT_FILE_SIZE"
+            ? 413
+            : e.code.startsWith("LIMIT_")
+              ? 400
+              : 409,
+        )
         .json({ error: messages[e.code] });
       return;
     }
-    if (e.status === 400) {
-      res.status(400).json({ error: "The request could not be read." });
+    if (e.status === 400 || e.status === 413) {
+      res.status(e.status).json({
+        error:
+          e.status === 413
+            ? "The request exceeds the size limit."
+            : "The request could not be read.",
+      });
       return;
     }
     if (e.code === "ENOENT") {
@@ -839,20 +917,16 @@ app.use(
       e.code === "ENOTFOUND" ||
       e.code === "42P01"
     ) {
-      res
-        .status(503)
-        .json({
-          error:
-            "The database is unavailable or has not been initialized. Check CockroachDB and run the migration.",
-        });
+      res.status(503).json({
+        error:
+          "The database is unavailable or has not been initialized. Check CockroachDB and run the migration.",
+      });
       return;
     }
     console.error("Request failed:", e.code || e.name || "unexpected error");
-    res
-      .status(500)
-      .json({
-        error: "The operation could not be completed. Please try again.",
-      });
+    res.status(500).json({
+      error: "The operation could not be completed. Please try again.",
+    });
   },
 );
 function getResource(key: unknown) {

@@ -3,6 +3,8 @@ import {
   useEffect,
   useRef,
   useState,
+  lazy,
+  Suspense,
   type FormEvent,
   type ReactNode,
 } from "react";
@@ -47,10 +49,13 @@ import {
   Scale,
   BriefcaseBusiness,
   PanelRightClose,
+  Network,
   type LucideIcon,
 } from "lucide-react";
 import type { Actor, Field, Resource } from "../server/resources";
 import { api, ApiError } from "./api";
+import { csvCell } from "./csv";
+const SchemaExplorer = lazy(() => import("./SchemaExplorer"));
 
 type Meta = Resource & { canWrite: boolean };
 type Row = Record<string, any>;
@@ -61,6 +66,10 @@ type Lookup = {
   active?: boolean;
   district_id?: string;
   office_id?: string;
+  property_id?: string;
+  transaction_type?: string;
+  service_type?: string;
+  status?: string;
 };
 type Lookups = Record<string, Lookup[]>;
 type RecordPage = { rows: Row[]; total: number; page: number; limit: number };
@@ -122,7 +131,8 @@ const money = (v: unknown) =>
   new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(Number(v || 0));
 const compact = (v: unknown) =>
   new Intl.NumberFormat("en-IN", {
@@ -667,6 +677,13 @@ function Workspace({
               </button>
             );
           })}
+          <button
+            className={route === "diagram" ? "active" : ""}
+            onClick={() => navigate("diagram")}
+          >
+            <Network size={16} />
+            <span>ER diagram</span>
+          </button>
         </nav>
       </div>
       <main className="main-content">
@@ -686,6 +703,10 @@ function Workspace({
             create={openCreate}
             open={(key, row) => setDrawer({ resource: key, row })}
           />
+        ) : route === "diagram" ? (
+          <Suspense fallback={<Loading />}>
+            <SchemaExplorer />
+          </Suspense>
         ) : current ? (
           <RecordsPage
             key={current.key}
@@ -1198,17 +1219,7 @@ function RecordsPage({
         ),
       ),
     ];
-    const content = rows
-      .map((row) =>
-        row
-          .map((v) => {
-            let text = String(v ?? "");
-            if (/^[=+\-@]/.test(text)) text = `'${text}`;
-            return `"${text.replaceAll('"', '""')}"`;
-          })
-          .join(","),
-      )
-      .join("\r\n");
+    const content = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
     const url = URL.createObjectURL(
       new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8" }),
     );
@@ -1447,7 +1458,8 @@ function display(value: any, field?: Field, lookups: Lookups = {}) {
   if (field?.type === "json") return JSON.stringify(value, null, 2);
   if (["amount", "consideration", "market_value"].includes(field?.key || ""))
     return money(value);
-  if (field?.key === "share") return `${Number(value) * 100}%`;
+  if (field?.key === "share")
+    return `${Number((Number(value) * 100).toFixed(6))}%`;
   if (field?.type === "select") return nice(value);
   return String(value);
 }
@@ -1549,8 +1561,36 @@ function FieldInput({
     options = options.filter(
       (o) => o.designation === f.designation && o.active,
     );
+  if (f.designation && data.property_id) {
+    const office = lookups.properties?.find(
+      (p) => p.id === data.property_id,
+    )?.office_id;
+    if (office) options = options.filter((o) => o.office_id === office);
+  }
   if (f.key === "office_id" && data.district_id)
     options = options.filter((o) => o.district_id === data.district_id);
+  if (
+    ["transactions", "documents", "applications"].includes(f.reference || "") &&
+    data.property_id
+  )
+    options = options.filter((o) => o.property_id === data.property_id);
+  if (f.reference === "applications")
+    options = options.filter(
+      (o) =>
+        o.service_type === "encumbrance_certificate" &&
+        ["submitted", "under_review"].includes(o.status || ""),
+    );
+  if (f.reference === "transactions" && (data.document_type || data.role))
+    options = options.filter((o) => o.status === "pending");
+  if (
+    f.reference === "transactions" &&
+    ["registration", "transfer"].includes(data.service_type)
+  )
+    options = options.filter(
+      (o) =>
+        (o.transaction_type === "registration") ===
+        (data.service_type === "registration"),
+    );
   const common = {
     required: f.required,
     id: `field-${f.key}`,
@@ -1760,9 +1800,25 @@ function RecordDrawer({
       r.key,
     ) &&
     !finalized;
+  const selectedPropertyId = editing ? data.property_id : row?.property_id;
+  const selectedOfficeId =
+    row?.office_id ||
+    lookups.properties?.find((p) => p.id === selectedPropertyId)?.office_id;
   const availableOfficers = (lookups.officers || []).filter(
-    (o) => o.designation === "sub_registrar" && o.active,
+    (o) =>
+      o.designation === "sub_registrar" &&
+      o.active &&
+      (!selectedOfficeId || o.office_id === selectedOfficeId),
   );
+  useEffect(() => {
+    if (
+      actor.role === "administrator" &&
+      selectedOfficeId &&
+      officerId &&
+      !availableOfficers.some((o) => o.id === officerId)
+    )
+      setOfficerId("");
+  }, [selectedOfficeId, officerId, actor.role, lookups.officers]);
   async function save(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -1877,6 +1933,31 @@ function RecordDrawer({
                         ...current,
                         [f.key]: v,
                         ...(f.key === "district_id" ? { office_id: "" } : {}),
+                        ...(f.key === "property_id"
+                          ? {
+                              ...(r.fields.some(
+                                (x) => x.key === "transaction_id",
+                              )
+                                ? { transaction_id: "" }
+                                : {}),
+                              ...(r.fields.some((x) => x.key === "document_id")
+                                ? { document_id: "" }
+                                : {}),
+                              ...(r.fields.some(
+                                (x) => x.key === "application_id",
+                              )
+                                ? { application_id: "" }
+                                : {}),
+                              ...(r.key === "transactions"
+                                ? {
+                                    office_id:
+                                      lookups.properties?.find(
+                                        (p) => p.id === v,
+                                      )?.office_id || "",
+                                  }
+                                : {}),
+                            }
+                          : {}),
                       }))
                     }
                   />

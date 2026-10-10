@@ -22,7 +22,12 @@ export async function api<T>(
   });
   const body = await response
     .json()
-    .catch(() => ({ error: "The server returned an unreadable response." }));
+    .catch(() => ({
+      error:
+        response.status >= 500
+          ? "The server is unavailable. Please try again shortly."
+          : "The server returned an unreadable response.",
+    }));
   if (!response.ok)
     throw new ApiError(body.error || "The request failed.", response.status);
   return body;

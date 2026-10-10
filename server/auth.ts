@@ -22,7 +22,8 @@ export function hashPassword(password: string) {
 }
 export function verifyPassword(password: string, encoded: string) {
   const [salt, hash] = encoded.split(":");
-  if (!salt || !hash || hash.length !== 128) return false;
+  if (!/^[a-f0-9]{32}$/.test(salt || "") || !/^[a-f0-9]{128}$/.test(hash || ""))
+    return false;
   return timingSafeEqual(
     Buffer.from(hash, "hex"),
     scryptSync(password, salt, 64),
@@ -40,6 +41,7 @@ export function createSession(userId: string) {
 }
 export function readSession(token: string) {
   try {
+    if (token.split(".").length !== 2) return null;
     const [payload, sig] = token.split(".");
     const expected = signature(payload);
     if (

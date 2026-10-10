@@ -1,0 +1,31 @@
+name: Verify LandLedger
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: postgresql://root@127.0.0.1:26257/defaultdb?sslmode=disable
+      SESSION_SECRET: ci-only-test-secret-never-used-for-application-records
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Start isolated CockroachDB
+        run: |
+          docker run -d --name landledger-ci -p 127.0.0.1:26257:26257 cockroachdb/cockroach:v25.4.0 start-single-node --insecure
+          for attempt in $(seq 1 45); do
+            if docker exec landledger-ci cockroach sql --insecure --execute='SELECT 1'; then exit 0; fi
+            sleep 1
+          done
+          docker logs landledger-ci
+          exit 1
+      - run: npm test
+      - run: npm run test:integration
+      - run: npm run build
+      - run: npm audit --audit-level=high

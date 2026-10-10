@@ -62,6 +62,21 @@ export function immutable(resource: Resource, row: Record<string, unknown>) {
     (resource.key === "encumbrances" && row.status === "released")
   );
 }
+export async function updateSurveyBoundary(
+  client: pg.PoolClient,
+  survey: Record<string, unknown>,
+) {
+  // Historical surveys remain valid records; only the latest completed survey maintains the parcel.
+  await client.query(
+    "UPDATE properties SET area=$1,boundary_details=$2,updated_at=now() WHERE id=$3 AND NOT EXISTS(SELECT 1 FROM surveys WHERE property_id=$3 AND survey_status='completed' AND survey_date>$4)",
+    [
+      survey.survey_area,
+      survey.boundary_details,
+      survey.property_id,
+      survey.survey_date,
+    ],
+  );
+}
 export async function validateRelations(
   client: pg.PoolClient,
   actor: Actor,
@@ -70,8 +85,27 @@ export async function validateRelations(
   old?: Record<string, unknown>,
 ) {
   const merged = { ...old, ...data };
-  if (merged.property_id)
-    await propertyAccess(client, actor, String(merged.property_id));
+  const recordedDates: Record<string, string[]> = {
+    documents: ["document_date"],
+    valuations: ["valuation_date"],
+    tax_payments: ["payment_date"],
+    mutations: ["mutation_date"],
+    applications: ["submitted_date"],
+    encumbrances: ["start_date", "end_date"],
+  };
+  for (const key of recordedDates[resource.key] || [])
+    demand(
+      !merged[key] || String(merged[key]) <= today(),
+      "Recorded dates cannot be in the future.",
+    );
+  if (resource.key === "surveys" && merged.survey_status === "completed")
+    demand(
+      String(merged.survey_date) <= today(),
+      "A completed survey cannot be dated in the future.",
+    );
+  const referencedProperty = merged.property_id
+    ? await propertyAccess(client, actor, String(merged.property_id))
+    : undefined;
   if (resource.key === "properties") {
     const office = await client.query(
       "SELECT district_id FROM offices WHERE id=$1",
@@ -86,7 +120,47 @@ export async function validateRelations(
       "Registered properties are maintained through surveys and mutations.",
       409,
     );
+    if (old && merged.office_id !== old.office_id)
+      demand(
+        !(
+          await client.query(
+            "SELECT id FROM transactions WHERE property_id=$1 LIMIT 1",
+            [old.id],
+          )
+        ).rows.length,
+        "The office cannot change while this property has transactions.",
+        409,
+      );
   }
+  if (
+    resource.key === "offices" &&
+    old &&
+    merged.district_id !== old.district_id
+  )
+    demand(
+      !(
+        await client.query(
+          "SELECT id FROM properties WHERE office_id=$1 LIMIT 1",
+          [old.id],
+        )
+      ).rows.length,
+      "An office with property records cannot be moved to another district.",
+      409,
+    );
+  if (
+    resource.key === "officers" &&
+    old &&
+    merged.designation !== old.designation
+  )
+    demand(
+      !(
+        await client.query("SELECT id FROM users WHERE officer_id=$1 LIMIT 1", [
+          old.id,
+        ])
+      ).rows.length,
+      "Change the linked account before changing this officer's designation.",
+      409,
+    );
   if (["surveys", "valuations"].includes(resource.key)) {
     const expected =
       resource.key === "surveys" ? "survey_officer" : "valuation_officer";
@@ -97,12 +171,16 @@ export async function validateRelations(
         403,
       );
     const { rows } = await client.query(
-      "SELECT designation,active FROM officers WHERE id=$1",
+      "SELECT designation,active,office_id FROM officers WHERE id=$1",
       [merged.officer_id],
     );
     demand(
       rows[0]?.active && rows[0].designation === expected,
       `Select an active ${expected.replaceAll("_", " ")}.`,
+    );
+    demand(
+      rows[0].office_id === referencedProperty?.office_id,
+      "The officer must belong to the property's registration office.",
     );
   }
   if (merged.transaction_id && resource.key !== "transaction_parties") {
@@ -227,6 +305,17 @@ export async function validateRelations(
       ["registration", "transfer"].includes(String(merged.service_type)),
       "Only registration/transfer applications can reference a transaction.",
     );
+    const tx = (
+      await client.query(
+        "SELECT transaction_type FROM transactions WHERE id=$1",
+        [merged.transaction_id],
+      )
+    ).rows[0];
+    demand(
+      (merged.service_type === "registration") ===
+        (tx.transaction_type === "registration"),
+      "The application service must match its transaction type.",
+    );
   }
   if (
     resource.key === "mutations" &&
@@ -251,11 +340,27 @@ export async function validateRelations(
         actor,
         resourceMap.get("applications")!,
         String(merged.application_id),
+        true,
       );
       demand(
         app.property_id === merged.property_id &&
           app.service_type === "encumbrance_certificate",
         "Select a certificate application for this property.",
+      );
+      demand(
+        ["submitted", "under_review"].includes(app.status),
+        "This application has already been finalized.",
+        409,
+      );
+      demand(
+        !(
+          await client.query(
+            "SELECT id FROM certificates WHERE application_id=$1 LIMIT 1",
+            [app.id],
+          )
+        ).rows.length,
+        "This application already has an issued certificate.",
+        409,
       );
     }
   }

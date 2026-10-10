@@ -7,7 +7,8 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          react: ["react", "react-dom"],
+          react: ["react", "react-dom", "react-dom/client"],
+          diagram: ["@xyflow/react"],
           icons: ["lucide-react"],
         },
       },
