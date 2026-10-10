@@ -1,31 +1,41 @@
 # LandLedger: verification and security report
 
 **Date:** 10 October 2026  
-**Application checkpoint:** `a112d51`  
+**Original browser/implementation checkpoint:** `a112d51`; latest automated checks include the Render configuration follow-up.\
 **Database:** real CockroachDB 25.4.0, local single node  
 **Runtime:** Node.js 22.19.0, macOS  
-**Result:** 50 automated tests passed — 11 unit checks and 39 database/API checks. No failures or skipped tests in the final runs.
+**Latest result:** 58 automated tests passed — 17 unit checks and 41 database/API checks. No failures or skipped tests in the final runs. The original checkpoint had 50 passing cases; the eight additions cover Render readiness.
 
 ## Verified results
 
-| Check                                     | Result                                             | Evidence                                                                                                                        |
-| ----------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Unit validation/auth/export suite         | 11 passed                                          | `npm test`; `evidence/validation-final.tap`                                                                                     |
-| Isolated CockroachDB/API suite            | 39 passed                                          | `npm run test:integration`; `evidence/integration-final.tap`                                                                    |
-| TypeScript and frontend production build  | Passed                                             | `npm run build`                                                                                                                 |
-| Installed dependency advisory audit       | 0 known vulnerabilities                            | `npm audit`, at verification time                                                                                               |
-| Standalone built frontend/API smoke check | Passed                                             | HTML and built script served; unauthorized records rejected; authenticated live schema returned                                 |
-| Actual schema                             | 18 tables, 37 foreign keys                         | Catalog response and approved SQL comparison                                                                                    |
-| Missing-parent rejection                  | All 37 FK cases passed                             | Deliberate invalid-parent updates in the isolated test database                                                                 |
-| Browser record navigation                 | All 12 primary tabs loaded their own database rows | 24 properties, 9 owners, 4 offices and populated examples in other modules                                                      |
-| Persistent browser entry                  | Passed                                             | Created fictional district, reloaded, found saved row                                                                           |
-| Stored HTML/Unicode rendering             | Passed                                             | `<img ... onerror=...>` displayed literally; table contained zero image elements and escaped markup; Tamil text retained        |
-| Relationship controls                     | Passed                                             | Selecting Chennai reduced the office dropdown to Chennai Central Registry                                                       |
-| Pagination/status filter                  | Passed                                             | Property page two displayed records 11–20; Pending filter showed four pending transactions                                      |
-| ER interactions/export                    | Passed                                             | Table selection, related-table filtering, fit view, inspection and JSON download; export verified as 18 tables/37 relationships |
-| Formatting/whitespace consistency         | Passed                                             | Prettier and `git diff --check`                                                                                                 |
+| Check                                        | Result                                             | Evidence                                                                                                                        |
+| -------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Unit validation/auth/export/deployment suite | 17 passed                                          | `npm test`; `evidence/render-unit-tests.tap`                                                                                    |
+| Isolated CockroachDB/API suite               | 41 passed                                          | `npm run test:integration`; `evidence/render-integration-tests.tap`                                                             |
+| TypeScript and frontend production build     | Passed                                             | `npm run build`                                                                                                                 |
+| Installed dependency advisory audit          | 0 known vulnerabilities                            | `npm audit`, at verification time                                                                                               |
+| Standalone built frontend/API smoke check    | Passed                                             | HTML and built script served; unauthorized records rejected; authenticated live schema returned                                 |
+| Actual schema                                | 18 tables, 37 foreign keys                         | Catalog response and approved SQL comparison                                                                                    |
+| Missing-parent rejection                     | All 37 FK cases passed                             | Deliberate invalid-parent updates in the isolated test database                                                                 |
+| Browser record navigation                    | All 12 primary tabs loaded their own database rows | 24 properties, 9 owners, 4 offices and populated examples in other modules                                                      |
+| Persistent browser entry                     | Passed                                             | Created fictional district, reloaded, found saved row                                                                           |
+| Stored HTML/Unicode rendering                | Passed                                             | `<img ... onerror=...>` displayed literally; table contained zero image elements and escaped markup; Tamil text retained        |
+| Relationship controls                        | Passed                                             | Selecting Chennai reduced the office dropdown to Chennai Central Registry                                                       |
+| Pagination/status filter                     | Passed                                             | Property page two displayed records 11–20; Pending filter showed four pending transactions                                      |
+| ER interactions/export                       | Passed                                             | Table selection, related-table filtering, fit view, inspection and JSON download; export verified as 18 tables/37 relationships |
+| Formatting/whitespace consistency            | Passed                                             | Prettier and `git diff --check`                                                                                                 |
 
 The two fictional district records created through the browser were removed through the API after checking them. Automated integration tests never modify the main application database: each run creates its own `landledger_test_*` database, installs the approved schema, launches a separate API and private upload directory, and drops only those test resources afterward.
+
+## Render readiness follow-up
+
+The production build passed again (`evidence/render-build.txt`), and npm reported zero known dependency vulnerabilities (`evidence/render-dependency-audit.txt`). `render.yaml` validated against [Render's official JSON Schema](https://render.com/schema/render.yaml.json); the result is retained in `evidence/render-blueprint-validation.json`. Temporary schema-validation tools were installed outside the repository and are not application dependencies.
+
+New configuration cases verify local loopback defaults, Render's assigned HTTPS origin/port, one trusted ingress hop, custom-domain overrides, required production TLS, and rejection of malformed origins/ports/password placeholders without exposing secrets. The Render demo wrapper requires an explicit private password and leaves the parent web service's production mode unchanged.
+
+Two new integration cases exercise real local CockroachDB and separate subprocesses. The proxy case confirms a throttled client cannot evade the limit by prepending a spoofed forwarded address, while another client can sign in; foreign-origin writes remain blocked. The bootstrap case creates 24 fictional properties, seven privately password-hashed accounts and readable sample PDFs, confirms repeat initialization leaves account hashes unchanged, and confirms an unrelated non-empty registry is refused. Normal production seeding remains blocked. These tests create and remove only disposable test databases and document directories.
+
+The approved SQL schema has not changed. No Render resources were created, and no public HTTPS endpoint, actual Render proxy topology, cloud password, cloud migration or persistent-disk redeploy was tested. Follow [the deployment guide](RENDER_DEPLOYMENT.md) to perform those final platform checks after creating the service.
 
 ## Relationship and workflow coverage
 
@@ -102,7 +112,7 @@ npm run build
 npm audit
 ```
 
-The integration SQL user must be allowed to create/drop the suite's isolated databases. Tests use a separate API port 3101. The checked-in GitHub Actions workflow repeats unit/integration/build/advisory checks on pushes and pull requests with CockroachDB 25.4.0 in an isolated container. [The checkpoint's GitHub Actions run](https://github.com/Sai-2211/dbms_project/actions/runs/38046599242) completed successfully. This independently verified the tests, build and dependency audit on Linux with the CockroachDB container.
+The integration SQL user must be allowed to create/drop the suite's isolated databases. Tests use separate API ports 3101 and 3102. The checked-in GitHub Actions workflow repeats unit/integration/build/advisory checks on pushes and pull requests with CockroachDB 25.4.0 in an isolated container. [The original checkpoint's GitHub Actions run](https://github.com/Sai-2211/dbms_project/actions/runs/38046599242) completed successfully. This independently verified that checkpoint's tests, build and dependency audit on Linux with the CockroachDB container.
 
 Desktop layout was inspected at 1440 × 1000 and mobile layout at 380 × 844. The dashboard and ER explorer kept the page within the mobile viewport; navigation and data tables use their own horizontal scrolling. Temporary viewport overrides were reset after checking. Screenshots are retained in `images/`.
 
@@ -114,7 +124,7 @@ The course dataset is fictional. A signed session remains valid until expiry or 
 
 ## Automated test inventory
 
-The inventory below is generated from the successful final local test output. Several named tests contain multiple assertions/cases, including all 37 FK cases and all editable metadata fields.
+The inventory combines the original successful local output and the Render follow-up output. Several named tests contain multiple assertions/cases, including all 37 FK cases and all editable metadata fields. Entries are grouped for readability rather than execution order.
 
 ### Unit checks
 
@@ -129,6 +139,12 @@ The inventory below is generated from the successful final local test output. Se
 9. text trims whitespace and preserves Unicode and HTML as plain data
 10. malformed password hashes and extra session token components fail safely
 11. CSV exports neutralize formulas including leading whitespace and quote cells
+12. local configuration remains loopback-only and does not trust proxy headers
+13. Render uses its assigned HTTPS origin, ingress hop and injected port
+14. custom domain and upload directory override Render defaults
+15. production rejects insecure database TLS and non-HTTPS website origins
+16. configuration errors reject malformed origins, ports and SQL password placeholders without leaking secrets
+17. Render demo initialization requires an explicit private password and Render environment
 
 ### CockroachDB/API checks
 
@@ -171,3 +187,5 @@ The inventory below is generated from the successful final local test output. Se
 37. login throttling blocks repeated guessing attempts
 38. replacing one document preserves a file still referenced by another document
 39. survey and valuation officers cannot maintain a parcel from another registration office
+40. Render proxy mode keeps client login limits separate and rejects spoofed outer forwarded addresses
+41. Render demo bootstrap creates private accounts and document files, is idempotent, and refuses unrelated records

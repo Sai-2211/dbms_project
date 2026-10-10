@@ -28,9 +28,10 @@ const { pool, transaction, assertCockroach } =
   await import("../../server/db.js");
 const { insert, approveTransfer, validateRelations } =
   await import("../../server/business.js");
-const { hashPassword } = await import("../../server/auth.js");
+const { hashPassword, verifyPassword } = await import("../../server/auth.js");
 const { resourceMap } = await import("../../server/resources.js");
 let child: ChildProcess | undefined;
+const deploymentChildren = new Set<ChildProcess>();
 let uploadDir = "";
 const password = "Integration@2026";
 let actor: Actor;
@@ -139,6 +140,14 @@ before(async () => {
   assert.equal(ready, true, "Isolated test API starts successfully");
 });
 after(async () => {
+  for (const process of deploymentChildren) {
+    if (process.exitCode !== null || process.signalCode !== null) continue;
+    const exited = new Promise<void>((resolve) =>
+      process.once("exit", () => resolve()),
+    );
+    process.kill("SIGTERM");
+    await exited;
+  }
   if (child && !child.killed) {
     child.kill("SIGTERM");
     await new Promise<void>((resolve) => child!.once("exit", () => resolve()));
@@ -148,6 +157,230 @@ after(async () => {
   await control.end();
   if (uploadDir) await rm(uploadDir, { recursive: true, force: true });
 });
+
+test("Render proxy mode keeps client login limits separate and rejects spoofed outer forwarded addresses", async () => {
+  const origin = "http://127.0.0.1:3102";
+  const server = spawn(
+    process.execPath,
+    ["--import", "tsx", "server/index.ts"],
+    {
+      env: {
+        ...process.env,
+        HOST: "127.0.0.1",
+        PORT: "3102",
+        NODE_ENV: "development",
+        RENDER: "true",
+        APP_ORIGIN: "",
+        RENDER_EXTERNAL_URL: origin,
+        UPLOAD_DIR: uploadDir,
+      },
+      stdio: ["ignore", "ignore", "pipe"],
+    },
+  );
+  deploymentChildren.add(server);
+  let stderr = "";
+  server.stderr?.on("data", (bytes) => {
+    stderr += bytes.toString();
+  });
+  try {
+    let ready = false;
+    for (let attempt = 0; attempt < 100; attempt++) {
+      try {
+        if ((await fetch(`${origin}/api/health`)).ok) {
+          ready = true;
+          break;
+        }
+      } catch {}
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    assert.equal(
+      ready,
+      true,
+      "API starts using Render's external URL fallback",
+    );
+    const headers = {
+      "Content-Type": "application/json",
+      "X-LandLedger-Request": "1",
+      Origin: origin,
+    };
+    const login = (ip: string, username = "unknown-client") =>
+      fetch(`${origin}/api/auth/login`, {
+        method: "POST",
+        headers: { ...headers, "X-Forwarded-For": ip },
+        body: JSON.stringify({
+          username,
+          password: username === "test-admin" ? password : "incorrect",
+        }),
+      });
+    for (let attempt = 0; attempt < 30; attempt++)
+      assert.equal((await login("198.51.100.44")).status, 401);
+    assert.equal((await login("198.51.100.44")).status, 429);
+    // Trust only the closest ingress hop, not the client-controlled leftmost IP.
+    assert.equal((await login("203.0.113.250, 198.51.100.44")).status, 429);
+    const valid = await login("198.51.100.45", "test-admin");
+    assert.equal(valid.status, 200, "A different client can still sign in");
+    assert.match(valid.headers.get("set-cookie")!, /HttpOnly/);
+    const cookie = valid.headers.get("set-cookie")!.split(";")[0];
+    assert.equal(
+      (await fetch(`${origin}/api/schema`, { headers: { Cookie: cookie } }))
+        .status,
+      200,
+    );
+    const foreign = await fetch(`${origin}/api/auth/login`, {
+      method: "POST",
+      headers: { ...headers, Origin: "https://foreign.example.test" },
+      body: JSON.stringify({ username: "test-admin", password }),
+    });
+    assert.equal(foreign.status, 403);
+    assert.doesNotMatch(stderr, /ERR_ERL_/);
+  } finally {
+    if (server.exitCode === null && server.signalCode === null) {
+      const exited = new Promise<void>((resolve) =>
+        server.once("exit", () => resolve()),
+      );
+      server.kill("SIGTERM");
+      await exited;
+    }
+    deploymentChildren.delete(server);
+  }
+});
+
+test(
+  "Render demo bootstrap creates private accounts and document files, is idempotent, and refuses unrelated records",
+  { timeout: 60000 },
+  async () => {
+    const demoName = `${name}_demo`;
+    const demoUrl = new URL(base!);
+    demoUrl.pathname = `/${demoName}`;
+    const demoPool = new pg.Pool({ connectionString: demoUrl.toString() });
+    const demoUploads = await mkdtemp(
+      path.join(tmpdir(), "landledger-demo-test-"),
+    );
+    const privatePassword = "PrivateBootstrapTest@2026";
+    const env = {
+      ...process.env,
+      RENDER: "true",
+      NODE_ENV: "production",
+      DATABASE_URL: demoUrl.toString(),
+      UPLOAD_DIR: demoUploads,
+      DEMO_ADMIN_PASSWORD: privatePassword,
+    };
+    const run = (script: string) =>
+      new Promise<{ code: number | null; output: string }>(
+        (resolve, reject) => {
+          const process = spawn(
+            globalThis.process.execPath,
+            ["--import", "tsx", script],
+            {
+              env,
+              stdio: ["ignore", "pipe", "pipe"],
+            },
+          );
+          deploymentChildren.add(process);
+          let output = "";
+          process.stdout?.on("data", (data) => {
+            output += data.toString();
+          });
+          process.stderr?.on("data", (data) => {
+            output += data.toString();
+          });
+          const timer = setTimeout(() => process.kill("SIGTERM"), 20000);
+          process.once("error", (error) => {
+            clearTimeout(timer);
+            deploymentChildren.delete(process);
+            reject(error);
+          });
+          process.once("close", (code) => {
+            clearTimeout(timer);
+            deploymentChildren.delete(process);
+            resolve({ code, output });
+          });
+        },
+      );
+    try {
+      await control.query(`CREATE DATABASE ${demoName}`);
+      await demoPool.query(
+        await readFile(
+          new URL("../../server/schema.sql", import.meta.url),
+          "utf8",
+        ),
+      );
+      const ordinarySeed = await run("server/seed.ts");
+      assert.equal(ordinarySeed.code, 1);
+      assert.match(ordinarySeed.output, /Demo seed is disabled in production/);
+      const initial = await run("server/bootstrap-demo.ts");
+      assert.equal(initial.code, 0, initial.output);
+      assert.doesNotMatch(initial.output, new RegExp(privatePassword));
+      const counts = (
+        await demoPool.query(
+          "SELECT (SELECT count(*) FROM properties) AS properties, (SELECT count(*) FROM users) AS users",
+        )
+      ).rows[0];
+      assert.equal(Number(counts.properties), 24);
+      assert.equal(Number(counts.users), 7);
+      const users = (
+        await demoPool.query(
+          "SELECT username,password_hash FROM users ORDER BY username",
+        )
+      ).rows;
+      for (const user of users) {
+        assert.equal(verifyPassword(privatePassword, user.password_hash), true);
+        assert.equal(
+          verifyPassword("LandLedger@2026", user.password_hash),
+          false,
+        );
+      }
+      const documents = (
+        await demoPool.query(
+          "SELECT file_key FROM documents WHERE file_key IS NOT NULL",
+        )
+      ).rows;
+      assert.ok(documents.length > 0);
+      for (const document of documents) {
+        const pdf = await readFile(path.join(demoUploads, document.file_key));
+        assert.match(pdf.toString(), /^%PDF-/);
+        assert.match(pdf.toString(), /Fictional sample document/);
+      }
+      const repeated = await run("server/bootstrap-demo.ts");
+      assert.equal(repeated.code, 0, repeated.output);
+      assert.match(repeated.output, /Existing data was left unchanged/);
+      assert.deepEqual(
+        (
+          await demoPool.query(
+            "SELECT username,password_hash FROM users ORDER BY username",
+          )
+        ).rows,
+        users,
+      );
+      // Only this disposable fixture is changed to exercise refusal of unrelated data.
+      await demoPool.query(
+        "UPDATE properties SET survey_no='QA-UNRELATED' WHERE survey_no='DEMO-1001'",
+      );
+      const unrelated = await run("server/bootstrap-demo.ts");
+      assert.equal(unrelated.code, 1);
+      assert.match(unrelated.output, /Refusing to seed a non-empty registry/);
+      assert.equal(
+        Number(
+          (await demoPool.query("SELECT count(*) AS count FROM properties"))
+            .rows[0].count,
+        ),
+        24,
+      );
+      assert.deepEqual(
+        (
+          await demoPool.query(
+            "SELECT username,password_hash FROM users ORDER BY username",
+          )
+        ).rows,
+        users,
+      );
+    } finally {
+      await demoPool.end();
+      await control.query(`DROP DATABASE IF EXISTS ${demoName} CASCADE`);
+      await rm(demoUploads, { recursive: true, force: true });
+    }
+  },
+);
 
 async function fixture() {
   return transaction(async (client) => {

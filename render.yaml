@@ -1,0 +1,31 @@
+# Paid Web Service + persistent document disk. Review Render's cost before creating.
+# CockroachDB stays external; this Blueprint does not create a Render Postgres DB.
+services:
+  - type: web
+    name: landledger
+    runtime: node
+    plan: 0.5c-512mb
+    region: singapore
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm run start:render
+    healthCheckPath: /api/health
+    autoDeployTrigger: checksPass
+    disk:
+      name: landledger-documents
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 22.x
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: UPLOAD_DIR
+        value: /var/data/uploads
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: DEMO_ADMIN_PASSWORD
+        sync: false

@@ -42,6 +42,7 @@ import {
 pg.types.setTypeParser(1082, (value) => value);
 checkConfig();
 const app = express();
+app.set("trust proxy", config.trustProxy);
 app.disable("x-powered-by");
 app.use(
   helmet({

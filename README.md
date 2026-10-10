@@ -88,7 +88,13 @@ The seed creates 24 fictional properties, nine owners, four districts and exampl
 
 Start with [the step-by-step demo guide](docs/DEMO_GUIDE.md). It covers a new registration, a transfer, verification, joint ownership, rollback, role access and the ER explorer. The dashboard is populated from database queries, rather than hardcoded counts.
 
-Read [the detailed architecture report](docs/ARCHITECTURE.md) for the frontend, backend, database connection and transfer workflow. [The verification report](docs/VERIFICATION_REPORT.md) contains all 50 passing test cases, security checks, browser evidence and practical limitations.
+Read [the detailed architecture report](docs/ARCHITECTURE.md) for the frontend, backend, database connection and transfer workflow. [The verification report](docs/VERIFICATION_REPORT.md) contains all 58 passing test cases, security checks, browser evidence and practical limitations.
+
+## Host on Render
+
+Follow [the Render deployment guide](docs/RENDER_DEPLOYMENT.md). Import this repository using **New → Blueprint**: `render.yaml` configures a Node Web Service that serves React and the API together, connects to your external CockroachDB Cloud database, and keeps document files on a persistent disk. It selects a **paid service and disk**; review the cost in Render before creating them.
+
+Provide your private `DATABASE_URL` and a new private `DEMO_ADMIN_PASSWORD`. Render generates the session secret, and the app automatically uses the assigned HTTPS address. After deployment, run `npm run db:bootstrap-demo` in the Render Shell to initialize fictional records and accounts. The guide includes an alternative for an existing manually created Web Service. No cloud resources are created by committing these files.
 
 ## Schema approval
 
@@ -104,7 +110,7 @@ npm run test:integration
 npm run build
 ```
 
-The integration tests require a reachable CockroachDB instance and a development SQL user allowed to create databases. Each run creates its own `landledger_test_*` database and removes only that test database afterward. The tests exercise all 37 foreign keys, full rollback, conflicting transfers, joint ownership, document checks, role access, status filters, SQL injection, escaped HTML, upload/download, certificates, surveys and live schema accuracy. The final suites passed 11 unit and 39 integration tests. GitHub Actions repeats the checks on each push and pull request.
+The integration tests require a reachable CockroachDB instance and a development SQL user allowed to create databases. Each run creates its own `landledger_test_*` databases and removes only those test databases afterward. The tests exercise all 37 foreign keys, full rollback, conflicting transfers, joint ownership, document checks, role access, status filters, SQL injection, escaped HTML, upload/download, certificates, surveys, live schema accuracy, Render proxy limits and private demo initialization. The latest suites passed 17 unit and 41 integration tests. GitHub Actions repeats the checks on each push and pull request.
 
 The application never substitutes SQLite, PostgreSQL, browser storage or mock data when CockroachDB is unavailable. The interface displays a connection or operation error.
 
@@ -119,16 +125,16 @@ Open **http://127.0.0.1:3001**. The API serves the built frontend. Development m
 
 ## Configuration
 
-| Variable              | Purpose                                                                                       |
-| --------------------- | --------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`        | CockroachDB connection URL. Use verified TLS for a cloud/secure cluster.                      |
-| `SESSION_SECRET`      | Random signing secret, at least 32 characters. Never put it in frontend code.                 |
-| `PORT`                | API port; default 3001.                                                                       |
-| `HOST`                | API bind host; default `127.0.0.1`. Only change for a controlled container/server deployment. |
-| `APP_ORIGIN`          | Frontend origin for request checks. Default `http://127.0.0.1:5173`.                          |
-| `UPLOAD_DIR`          | Persistent private document directory; default `uploads`.                                     |
-| `DEMO_ADMIN_PASSWORD` | Local sample-account password, used during first seed only.                                   |
-| `NODE_ENV`            | Set to `production` only with HTTPS, secure database credentials, and real accounts.          |
+| Variable              | Purpose                                                                                         |
+| --------------------- | ----------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`        | CockroachDB connection URL. Production requires `sslmode=verify-full`.                          |
+| `SESSION_SECRET`      | Random signing secret, at least 32 characters. Never put it in frontend code.                   |
+| `PORT`                | API port; default 3001.                                                                         |
+| `HOST`                | API bind host; default `127.0.0.1` locally, `0.0.0.0` on Render.                                |
+| `APP_ORIGIN`          | Exact frontend origin. Uses Render's assigned URL there; local default `http://127.0.0.1:5173`. |
+| `UPLOAD_DIR`          | Persistent private document directory; default `uploads`.                                       |
+| `DEMO_ADMIN_PASSWORD` | Sample-account password for first seed only. Render bootstrap requires a private value.         |
+| `NODE_ENV`            | Set to `production` only with HTTPS, secure database credentials, and real accounts.            |
 
 Uploaded files are PDF/PNG/JPEG, up to 10 MB, with a UUID storage key and SHA-256 checksum. Downloads require an authorized session. Finalized documents cannot be replaced. Keep both database backups and document-directory backups together.
 
@@ -144,9 +150,11 @@ server/db.ts          Database connection and serializable retry wrapper
 server/catalog.ts     Live column, key and relationship metadata for the ER tab
 src/SchemaExplorer.tsx Interactive ER diagram and schema inspector
 server/seed.ts        Fictional demonstration records
+server/bootstrap-demo.ts Explicit Render Shell demo initialization
 tests/                Unit and isolated database/API tests
 docs/                 ER diagram, approval record and professor/demo guides
 docker-compose.yml    Loopback-only persistent development CockroachDB
+render.yaml           Render Web Service and private persistent document disk
 ```
 
 ## Scope and deployment limits

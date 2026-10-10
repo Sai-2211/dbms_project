@@ -196,13 +196,21 @@ The automated comparison checks every foreign-key endpoint and nullable flag aga
 
 ## 11. Verification and practical limits
 
-The final local results are **11 unit tests and 39 CockroachDB/API integration tests passed**, with no skipped tests. TypeScript checking and the production frontend build passed. npm's advisory audit reported zero known vulnerabilities in the installed dependency set at verification time. The browser check covered all 12 record tabs, persistent entry, Unicode, escaped stored HTML, dependent dropdowns, pagination, status filtering, details and ER interactions/export. See [VERIFICATION_REPORT.md](VERIFICATION_REPORT.md) for the evidence and test inventory.
+The latest local results are **17 unit tests and 41 CockroachDB/API integration tests passed**, with no skipped tests, including the Render deployment follow-up. TypeScript checking and the production frontend build passed. npm's advisory audit reported zero known vulnerabilities in the installed dependency set at verification time. The original browser check covered all 12 record tabs, persistent entry, Unicode, escaped stored HTML, dependent dropdowns, pagination, status filtering, details and ER interactions/export. See [VERIFICATION_REPORT.md](VERIFICATION_REPORT.md) for the evidence and test inventory.
 
 These checks provide broad repeatable coverage of representative inputs and security paths. They do not prove the absence of every possible vulnerability. The tested runtime was a local single-node CockroachDB instance on macOS with Node 22. The Docker Compose definition was checked for configuration validity; its local containers were not run because the local Docker daemon was unavailable. [GitHub Actions passed independently on Linux](https://github.com/Sai-2211/dbms_project/actions/runs/38046599242), using the versioned CockroachDB Docker image for the database checks.
 
 The course prototype has no real government identity/deed verification, payment or lending integration, cadastral GIS, automated fraud classification, password-reset/MFA flow or legal certificate issuance. Account creation is available; password changes/account lifecycle management would need further application work. Audit records are append-only through the API but can be modified by a privileged database administrator. Sessions are signed and expire after eight hours; logout clears the browser cookie and does not provide individual stolen-token revocation. Rate-limit counters are held in one API process, not a shared distributed store. Reference dropdowns return up to 1,000 authorized records.
 
 Public deployment was not performed. The local root/insecure database is bound to loopback for demonstration. A real deployment requires HTTPS, verified database TLS, least-privilege SQL credentials, replacement of demo accounts, coordinated database/file backups and operational monitoring. Production cookie/configuration paths exist, but a public TLS deployment, multi-node failover and production-scale load testing were not demonstrated. Any future table/column/relationship changes still require the user's permission.
+
+### Render deployment configuration
+
+The root `render.yaml` defines a single Node Web Service. Render builds React with Vite; `npm run start:render` applies the approved initial schema and then starts the same Express application. The browser uses relative `/api` URLs, so the frontend and backend share the assigned HTTPS origin without a separate frontend server or public database credentials.
+
+On Render, configuration defaults to its `RENDER_EXTERNAL_URL`, `0.0.0.0` and its injected `PORT`. A custom `APP_ORIGIN` overrides the assigned origin. Production startup requires HTTPS and a database URL using `sslmode=verify-full`. Express trusts one Render ingress hop for per-client rate limiting; local operation continues to reject proxy headers as a source of client identity.
+
+CockroachDB Cloud remains an external database. A paid persistent disk mounted at `/var/data` holds private uploads under `/var/data/uploads`; SQL rows hold the document metadata. The explicit `db:bootstrap-demo` Shell command requires a private first-seed password and retains the protections against overwriting an existing registry. Normal production startup never seeds accounts automatically. See [RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md) for the exact settings, initialization steps and deployment limitations. No public deployment or cloud account provisioning was performed during repository preparation.
 
 ## 12. Explanation for the professor
 
