@@ -27,6 +27,7 @@ import {
 import { accessible, propertyAccess, redact, scope } from "./access.js";
 import { demand, HttpError } from "./errors.js";
 import { validDate, uuidPattern, validateRecord } from "./validation.js";
+import { publicPortal } from "./public-portal.js";
 import {
   approveTransfer,
   audit,
@@ -104,7 +105,11 @@ app.get("/api/health", async (_req, res) => {
   }
 });
 app.post("/api/auth/login", loginLimiter, async (req, res) => {
-  const { username, password } = req.body ?? {};
+  const { username, password, portal } = req.body ?? {};
+  demand(
+    portal === undefined || portal === "department" || portal === "public",
+    "Select a valid sign-in area.",
+  );
   demand(
     typeof username === "string" &&
       username.length <= 200 &&
@@ -118,6 +123,12 @@ app.post("/api/auth/login", loginLimiter, async (req, res) => {
   );
   const correct = verifyPassword(password, rows[0]?.password_hash ?? dummyHash);
   demand(rows[0] && correct, "The username or password is incorrect.", 401);
+  demand(
+    portal === undefined ||
+      (portal === "public") === (rows[0].role === "public_viewer"),
+    "This account belongs to the other sign-in area. Choose Public user or Department / administrator.",
+    403,
+  );
   setSession(res, createSession(rows[0].id));
   const { id, role, owner_id, officer_id } = rows[0];
   res.json({ id, username: rows[0].username, role, owner_id, officer_id });
@@ -144,6 +155,16 @@ app.use(
   }),
 );
 app.get("/api/auth/me", (req, res) => res.json(req.actor));
+// Deny department endpoints by default, including new endpoints added in future.
+app.use("/api", (req, _res, next) => {
+  demand(
+    req.actor.role !== "public_viewer" || req.path.startsWith("/public/"),
+    "Public accounts can only view the public property portal.",
+    403,
+  );
+  next();
+});
+app.use("/api/public", publicPortal);
 app.get("/api/schema", async (_req, res) => res.json(await readSchema()));
 app.get("/api/metadata", (req, res) =>
   res.json(
@@ -797,6 +818,7 @@ app.post("/api/accounts", async (req, res) => {
   demand(
     [
       "administrator",
+      "public_viewer",
       "owner",
       "survey_officer",
       "valuation_officer",

@@ -1,0 +1,25 @@
+
+> landledger@1.0.0 build
+> tsc --noEmit && vite build
+
+vite v7.3.7 building client environment for production...
+transforming...
+✓ 1752 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                              0.93 kB │ gzip:   0.46 kB
+dist/assets/manrope-vietnamese-wght-normal-usUDDRr7.woff2    8.52 kB
+dist/assets/manrope-greek-wght-normal-DL7QRZyv.woff2         9.44 kB
+dist/assets/manrope-cyrillic-wght-normal-Dvxsihut.woff2     14.50 kB
+dist/assets/manrope-latin-ext-wght-normal-Ch3YOpNY.woff2    15.12 kB
+dist/assets/dm-sans-latin-ext-wght-normal-BOFOeGcA.woff2    18.23 kB
+dist/assets/manrope-latin-wght-normal-DHIcAJRg.woff2        24.84 kB
+dist/assets/dm-sans-latin-wght-normal-Xz1IZZA0.woff2        36.93 kB
+dist/assets/SchemaExplorer-BnuhLJ6X.css                     15.87 kB │ gzip:   2.67 kB
+dist/assets/index-Bt6EIXgT.css                              42.24 kB │ gzip:  12.19 kB
+dist/assets/SchemaExplorer-DxURCZ__.js                      20.47 kB │ gzip:   3.88 kB
+dist/assets/icons-BtCjlVmP.js                               30.64 kB │ gzip:  11.12 kB
+dist/assets/index-0PYevVqA.js                              137.81 kB │ gzip:  23.58 kB
+dist/assets/diagram-Bwu6BPYl.js                            198.26 kB │ gzip:  64.66 kB
+dist/assets/react-CMIWSd4i.js                              391.76 kB │ gzip: 118.51 kB
+✓ built in 2.12s

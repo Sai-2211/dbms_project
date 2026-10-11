@@ -1,4 +1,5 @@
 export type Role =
+  | "public_viewer"
   | "administrator"
   | "owner"
   | "survey_officer"
@@ -522,6 +523,7 @@ export const resourceMap = new Map(
   resources.map((resource) => [resource.key, resource]),
 );
 export function canRead(actor: Actor, resource: Resource) {
+  if (actor.role === "public_viewer") return false;
   if (resource.reads) return resource.reads.includes(actor.role);
   if (actor.role === "bank_verifier")
     return [

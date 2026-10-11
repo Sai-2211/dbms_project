@@ -2113,20 +2113,6 @@ test("owners cannot approve registrations or set privileged fields", async () =>
     400,
   );
 });
-test("login throttling blocks repeated guessing attempts", async () => {
-  let denied = false,
-    throttled = false;
-  for (let n = 0; n < 31; n++) {
-    const response = await request("/auth/login", undefined, "POST", {
-      username: "unknown-test-user",
-      password: "wrong",
-    });
-    denied ||= response.status === 401;
-    throttled ||= response.status === 429;
-  }
-  assert.equal(denied, true);
-  assert.equal(throttled, true);
-});
 
 test("replacing one document preserves a file still referenced by another document", async () => {
   const cookie = await login("test-admin"),
@@ -2204,4 +2190,412 @@ test("survey and valuation officers cannot maintain a parcel from another regist
       400,
     );
   }
+});
+
+test("public role migration upgrades legacy checks twice without changing existing accounts or relationships", async () => {
+  const { upgradePublicRole } =
+    await import("../../server/upgrade-public-role.js");
+  const before = (await pool.query("SELECT * FROM users ORDER BY id")).rows;
+  await pool.query(
+    "ALTER TABLE users ADD CONSTRAINT check_role CHECK(role IN ('administrator','owner','survey_officer','valuation_officer','sub_registrar','bank_verifier','auditor'))",
+  );
+  await pool.query(`ALTER TABLE users ADD CONSTRAINT check_role_owner_id_officer_id_role_officer_id_owner_id_role_owner_id_officer_id
+    CHECK((role='owner' AND owner_id IS NOT NULL AND officer_id IS NULL)
+    OR(role IN ('survey_officer','valuation_officer','sub_registrar','auditor') AND officer_id IS NOT NULL AND owner_id IS NULL)
+    OR(role IN ('administrator','bank_verifier') AND owner_id IS NULL AND officer_id IS NULL))`);
+  await pool.query("ALTER TABLE users DROP CONSTRAINT users_role_allowed");
+  await pool.query("ALTER TABLE users DROP CONSTRAINT users_role_profile");
+  await upgradePublicRole(pool);
+  await upgradePublicRole(pool);
+  assert.deepEqual(
+    (await pool.query("SELECT * FROM users ORDER BY id")).rows,
+    before,
+  );
+  const checks = (await pool.query("SHOW CONSTRAINTS FROM users")).rows.filter(
+    (r) => r.constraint_type === "CHECK",
+  );
+  assert.equal(checks.length, 2);
+  assert(
+    checks.every((r) => r.validated && r.details.includes("public_viewer")),
+  );
+  assert.equal(
+    (
+      await pool.query(
+        "SELECT count(*)::INT AS n FROM information_schema.referential_constraints WHERE constraint_schema='public'",
+      )
+    ).rows[0].n,
+    "37",
+  );
+});
+
+let publicCookie = "";
+let publicProperty: Record<string, any>;
+let pendingPublic: Record<string, any>;
+let rejectedPublic: Record<string, any>;
+let privateDistrictId = "";
+const publicSurvey = `PUBLIC-${randomUUID()}`;
+const hiddenSentinel = `PRIVATE-${randomUUID()}`;
+test("administrator creates public accounts, while visitors cannot register or choose a privileged role at login", async () => {
+  assert.equal(
+    (
+      await request("/accounts", undefined, "POST", {
+        username: "intruder",
+        password,
+        role: "administrator",
+      })
+    ).status,
+    401,
+  );
+  assert.equal(
+    (
+      await request("/auth/register", undefined, "POST", {
+        username: "intruder",
+        password,
+      })
+    ).status,
+    401,
+  );
+  const adminCookie = await login("test-admin");
+  const created = await request("/accounts", adminCookie, "POST", {
+    username: "test-public",
+    password,
+    role: "public_viewer",
+    owner_id: ownerUser.owner_id,
+    officer_id: officer.id,
+  });
+  assert.equal(created.status, 201);
+  assert.equal(created.body.role, "public_viewer");
+  assert.equal(created.body.owner_id, null);
+  assert.equal(created.body.officer_id, null);
+  assert.equal(created.body.password_hash, undefined);
+  const wrongPortal = await request("/auth/login", undefined, "POST", {
+    username: "test-public",
+    password,
+    portal: "department",
+  });
+  assert.equal(wrongPortal.status, 403);
+  assert.equal(wrongPortal.cookie, undefined);
+  assert.equal(
+    (
+      await request("/auth/login", undefined, "POST", {
+        username: "test-admin",
+        password,
+        portal: "public",
+      })
+    ).status,
+    403,
+  );
+  assert.equal(
+    (
+      await request("/auth/login", undefined, "POST", {
+        username: "test-public",
+        password,
+        portal: "administrator",
+      })
+    ).status,
+    400,
+  );
+  const signedIn = await request("/auth/login", undefined, "POST", {
+    username: "test-public",
+    password,
+    portal: "public",
+    role: "administrator",
+  });
+  assert.equal(signedIn.status, 200);
+  assert.equal(signedIn.body.role, "public_viewer");
+  publicCookie = signedIn.cookie!;
+  assert.equal(
+    (await request("/auth/me", publicCookie)).body.role,
+    "public_viewer",
+  );
+});
+
+test("public directory, detail, counts and search expose registered property projections only", async () => {
+  const data = {
+    district_id: district.id,
+    office_id: office.id,
+    property_type: "residential",
+    area: "123.4500",
+    location: "Public test location",
+    boundary_details: hiddenSentinel,
+  };
+  await transaction(async (c) => {
+    const privateDistrict = await insert(c, "districts", {
+      district_name: hiddenSentinel,
+      state_name: "Private pending district",
+    });
+    privateDistrictId = privateDistrict.id;
+    const privateOffice = await insert(c, "offices", {
+      district_id: privateDistrict.id,
+      office_code: randomUUID(),
+      office_name: hiddenSentinel,
+      address: hiddenSentinel,
+    });
+    await insert(c, "properties", {
+      ...data,
+      district_id: privateDistrict.id,
+      office_id: privateOffice.id,
+      survey_no: hiddenSentinel,
+      registration_status: "pending",
+    });
+    publicProperty = await insert(c, "properties", {
+      ...data,
+      survey_no: publicSurvey,
+      registration_status: "registered",
+      registration_date: "2025-01-01",
+    });
+    pendingPublic = await insert(c, "properties", {
+      ...data,
+      survey_no: `PENDING-${hiddenSentinel}`,
+      registration_status: "pending",
+    });
+    rejectedPublic = await insert(c, "properties", {
+      ...data,
+      survey_no: `REJECTED-${hiddenSentinel}`,
+      registration_status: "rejected",
+    });
+    await insert(c, "encumbrances", {
+      property_id: publicProperty.id,
+      encumbrance_type: "mortgage",
+      claimant_name: hiddenSentinel,
+      start_date: "2025-01-01",
+      status: "active",
+      details: hiddenSentinel,
+    });
+  });
+  const expectedFields = [
+    "id",
+    "survey_no",
+    "property_type",
+    "area",
+    "location",
+    "district_name",
+    "state_name",
+    "office_name",
+    "registration_date",
+    "registration_status",
+    "has_active_encumbrance",
+  ].sort();
+  const result = await request(
+    `/public/properties?q=${publicSurvey}`,
+    publicCookie,
+  );
+  assert.equal(result.status, 200);
+  assert.equal(result.body.total, 1);
+  assert.equal(result.body.rows.length, 1);
+  const row = result.body.rows[0];
+  assert.deepEqual(Object.keys(row).sort(), expectedFields);
+  assert.equal(row.area, "123.4500");
+  assert.equal(row.has_active_encumbrance, true);
+  assert(!JSON.stringify(row).includes(hiddenSentinel));
+  const detail = await request(
+    `/public/properties/${publicProperty.id}`,
+    publicCookie,
+  );
+  assert.deepEqual(Object.keys(detail.body).sort(), expectedFields);
+  assert.equal(detail.body.survey_no, publicSurvey);
+  for (const id of [pendingPublic.id, rejectedPublic.id, randomUUID()])
+    assert.equal(
+      (await request(`/public/properties/${id}`, publicCookie)).status,
+      404,
+    );
+  assert.equal(
+    (await request(`/public/properties?q=${hiddenSentinel}`, publicCookie)).body
+      .total,
+    0,
+  );
+  assert.equal(
+    (
+      await request(
+        `/public/properties?q=${encodeURIComponent("' OR 1=1; DROP TABLE users; --")}`,
+        publicCookie,
+      )
+    ).body.total,
+    0,
+  );
+  assert.equal(
+    (await request("/public/properties?q=%25", publicCookie)).body.total,
+    0,
+  );
+  const overview = await request("/public/overview", publicCookie);
+  assert.equal(overview.status, 200);
+  const registeredCount = Number(
+    (
+      await pool.query(
+        "SELECT count(*) AS n FROM properties WHERE registration_status='registered'",
+      )
+    ).rows[0].n,
+  );
+  assert.equal(overview.body.total, registeredCount);
+  assert.equal(
+    overview.body.types.reduce((n: number, r: any) => n + r.count, 0),
+    registeredCount,
+  );
+  assert(!JSON.stringify(overview.body).includes(hiddenSentinel));
+  assert(!overview.body.districts.some((d: any) => d.id === privateDistrictId));
+  assert.equal(
+    (
+      await request(
+        `/public/properties?district=${privateDistrictId}`,
+        publicCookie,
+      )
+    ).body.total,
+    0,
+  );
+  assert.equal((await request("/public/properties", undefined)).status, 401);
+  assert.equal(
+    (await request("/public/properties", await login("test-owner"))).status,
+    403,
+  );
+});
+
+test("public accounts cannot access any department data, documents, schema or mutating endpoint", async () => {
+  for (const endpoint of [
+    "/schema",
+    "/metadata",
+    "/dashboard",
+    "/accounts",
+    "/lookups/owners",
+    "/records/properties",
+    `/records/properties/${publicProperty.id}`,
+    "/records/owners",
+    "/records/audit_events",
+    `/files/${randomUUID()}`,
+    `/documents/${randomUUID()}/file`,
+  ]) {
+    assert.equal((await request(endpoint, publicCookie)).status, 403, endpoint);
+  }
+  for (const [method, endpoint] of [
+    ["POST", "/accounts"],
+    ["POST", "/records/properties"],
+    ["PATCH", `/records/properties/${publicProperty.id}`],
+    ["DELETE", `/records/properties/${publicProperty.id}`],
+    ["POST", `/actions/transactions/${randomUUID()}/approve`],
+    ["POST", "/public/properties"],
+    ["DELETE", `/public/properties/${publicProperty.id}`],
+  ]) {
+    assert.equal(
+      (
+        await request(endpoint, publicCookie, method, {
+          role: "administrator",
+          registration_status: "registered",
+        })
+      ).status,
+      403,
+      endpoint,
+    );
+  }
+  assert.equal(
+    (
+      await request("/accounts", await login("test-owner"), "POST", {
+        username: "owner-created",
+        password,
+        role: "public_viewer",
+      })
+    ).status,
+    403,
+  );
+  const original = (
+    await pool.query("SELECT * FROM properties WHERE id=$1", [
+      publicProperty.id,
+    ])
+  ).rows[0];
+  assert.equal(original.survey_no, publicSurvey);
+});
+
+test("public search validates types, size, pagination and allowed fields without leaking private filters", async () => {
+  for (const query of [
+    "q[x]=abc",
+    "q=a&q=b",
+    `q=${"a".repeat(201)}`,
+    "district=not-a-uuid",
+    "page=0",
+    "page=-1",
+    "page=1.5",
+    "page=1000000",
+    "limit=0",
+    "limit=51",
+    "limit=NaN",
+    "owner_id=" + ownerUser.owner_id,
+    "status=pending",
+    "sort=password_hash",
+  ]) {
+    assert.equal(
+      (await request(`/public/properties?${query}`, publicCookie)).status,
+      400,
+      query,
+    );
+  }
+  const page = await request(
+    `/public/properties?q=${publicSurvey}&district=${district.id}&page=2&limit=1`,
+    publicCookie,
+  );
+  assert.equal(page.status, 200);
+  assert.equal(page.body.total, 1);
+  assert.deepEqual(page.body.rows, []);
+  assert.equal(
+    (await request("/public/properties/not-a-uuid", publicCookie)).status,
+    400,
+  );
+});
+
+test("database rejects unknown roles and public users linked to private profiles", async () => {
+  for (const [role, linked] of [
+    ["public_viewer", ownerUser.owner_id],
+    ["superuser", null],
+  ]) {
+    await assert.rejects(
+      () =>
+        pool.query(
+          "INSERT INTO users(username,password_hash,role,owner_id) VALUES($1,$2,$3,$4)",
+          [`invalid-${randomUUID()}`, hashPassword(password), role, linked],
+        ),
+      (e: any) => e.code === "23514",
+    );
+  }
+});
+
+test("public encumbrance indicator respects date range and never discloses claimants", async () => {
+  await pool.query(
+    "UPDATE encumbrances SET end_date='2025-01-02' WHERE property_id=$1",
+    [publicProperty.id],
+  );
+  assert.equal(
+    (await request(`/public/properties/${publicProperty.id}`, publicCookie))
+      .body.has_active_encumbrance,
+    false,
+  );
+  await pool.query(
+    "UPDATE encumbrances SET start_date='2199-01-01',end_date=NULL WHERE property_id=$1",
+    [publicProperty.id],
+  );
+  assert.equal(
+    (await request(`/public/properties/${publicProperty.id}`, publicCookie))
+      .body.has_active_encumbrance,
+    false,
+  );
+  await pool.query(
+    "UPDATE encumbrances SET start_date='2025-01-01',status='released' WHERE property_id=$1",
+    [publicProperty.id],
+  );
+  assert.equal(
+    (await request(`/public/properties/${publicProperty.id}`, publicCookie))
+      .body.has_active_encumbrance,
+    false,
+  );
+});
+
+test("login throttling blocks repeated guessing attempts", async () => {
+  let denied = false,
+    throttled = false;
+  for (let n = 0; n < 31; n++) {
+    const response = await request("/auth/login", undefined, "POST", {
+      username: "unknown-test-user",
+      password: "wrong",
+    });
+    denied ||= response.status === 401;
+    throttled ||= response.status === 429;
+  }
+  assert.equal(denied, true);
+  assert.equal(throttled, true);
 });

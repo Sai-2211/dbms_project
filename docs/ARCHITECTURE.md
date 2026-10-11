@@ -4,7 +4,7 @@
 **Verified:** 10 October 2026  
 **Implementation checkpoint:** `a112d51` on [GitHub](https://github.com/Sai-2211/dbms_project/commit/a112d516554b495f007e865dbf7a48206d933882)
 
-LandLedger is a working course demonstration with a React interface, an Express backend, and a real CockroachDB database. Forms save persistent records, and the dashboard and record pages read those records back. The approved schema contains 18 tables: the 12 main entities plus six supporting tables. Home and the separate interactive ER diagram accompany the 12 main navigation tabs. This update does not change the approved SQL schema.
+LandLedger is a working course demonstration with a React interface, an Express backend, and a real CockroachDB database. Forms save persistent records, and the dashboard and record pages read those records back. The approved schema contains 18 tables: the 12 main entities plus six supporting tables. Home and the separate interactive ER diagram accompany the 12 main navigation tabs. The public-user update widens the two existing `users` CHECK constraints; the table and relationship model stays the same.
 
 ## 1. Architecture
 
@@ -57,7 +57,7 @@ During development:
 
 For the built application, Express serves the files generated in `dist/` as well as `/api` from one origin. `npm run build` checks TypeScript and creates the frontend bundle; `npm start` runs the backend with its installed TypeScript runtime. The standalone built-app smoke check verified HTML, its JavaScript bundle, authentication, database connectivity and live schema metadata.
 
-`server/migrate.ts` creates the approved tables using `server/schema.sql`. It does not drop existing application tables. `server/seed.ts` adds explicitly fictional demonstration data and refuses unrelated nonempty databases. There is no automatic browser-storage or alternative-database fallback when CockroachDB is disconnected.
+`server/migrate.ts` creates the approved tables using `server/schema.sql`. It then runs `server/upgrade-public-role.ts`, which validates the replacement account checks before removing the legacy checks. It does not drop existing application tables or change their rows. `server/seed.ts` adds explicitly fictional demonstration data and refuses unrelated nonempty databases. There is no automatic browser-storage or alternative-database fallback when CockroachDB is disconnected.
 
 ## 4. Database model
 
@@ -95,7 +95,7 @@ Ownership history uses an inclusive `valid_from` and exclusive `valid_to`. A nul
 
 ## 5. Frontend implementation
 
-`src/App.tsx` contains the login screen, workspace, dashboard, record browser and drawers. `src/api.ts` centralizes requests and error handling. `src/styles.css` provides the responsive interface; fonts are installed locally so the interface does not depend on an external font service.
+`src/App.tsx` contains the login screen, workspace, dashboard, record browser and drawers. `src/PublicPortal.tsx` supplies the separate registered-property directory for public accounts. `src/api.ts` centralizes requests and error handling. `src/styles.css` provides the responsive interface; fonts are installed locally so the interface does not depend on an external font service.
 
 The Home dashboard uses database queries for property totals, registered properties, owners, pending transactions, recorded tax totals, type distribution, district distribution, recent properties and audit activity. The decorative parcel illustration is illustrative, rather than a geographic survey map.
 
@@ -139,6 +139,7 @@ Owner access is restricted to current holdings and properties associated with th
 | Sub-registrar     | Review documents, transactions and services within the applicable office                   |
 | Bank verifier     | Read permitted ownership/claim records with private owner fields hidden                    |
 | Auditor           | Read records and audit activity; no record writes                                          |
+| Public user       | Read only the explicit registered-property projection in `/api/public/*`                   |
 
 Finalized transactions, documents, completed surveys, valuations, paid receipts, released claims, completed applications/mutations and certificates are protected from ordinary edits/deletions. Registered parcel maintenance uses controlled survey and mutation workflows. Ownerships and audits cannot be directly written through the generic public record endpoints.
 
@@ -184,7 +185,7 @@ The file directory and SQL database are separate persistence systems. They do no
 
 ## 10. Interactive ER diagram correctness
 
-The separate **ER diagram** tab reads `/api/schema` after authentication. The backend reads real column definitions, primary/unique keys, foreign keys, nullability and referential actions from CockroachDB catalogs, plus `SHOW CONSTRAINTS` and `SHOW CREATE TABLE`. CockroachDB documents these system views in its [information-schema reference](https://docs.cockroachlabs.com/docs/stable/information-schema).
+The separate department **ER diagram** tab reads `/api/schema` after authentication; public users are denied this endpoint. The backend reads real column definitions, primary/unique keys, foreign keys, nullability and referential actions from CockroachDB catalogs, plus `SHOW CONSTRAINTS` and `SHOW CREATE TABLE`. CockroachDB documents these system views in its [information-schema reference](https://docs.cockroachlabs.com/docs/stable/information-schema).
 
 Each entity is a real table. Nodes display key attributes; selecting an entity shows all attributes, data types, nullability, defaults, constraints and table SQL/indexes. There are 18 nodes and 37 relationships. Users can drag nodes, pan, zoom, fit the view, reset the layout, focus on a table, inspect its neighbours, refresh definitions and export schema JSON. The interaction uses [React Flow](https://reactflow.dev/learn).
 
@@ -208,7 +209,7 @@ Public deployment was not performed. The local root/insecure database is bound t
 
 For Render Free, `npm run db:admin` is an interactive local CLI: the operator privately supplies the exact cloud database URL and chooses an application password. It creates only the fixed administrator identity in the existing `users` table and records creation in `audit_events`. Existing passwords are preserved unless the explicit `--reset-password` flag is used. It performs no public signup, schema migration or fictional document seeding. Account creation stays administrator-only. [ACCOUNT_SETUP.md](ACCOUNT_SETUP.md) explains first-login and recovery steps; free document persistence still requires a separate cloud-storage implementation.
 
-The root `render.yaml` defines a single Node Web Service. Render builds React with Vite; `npm run start:render` applies the approved initial schema and then starts the same Express application. The browser uses relative `/api` URLs, so the frontend and backend share the assigned HTTPS origin without a separate frontend server or public database credentials.
+The root `render.yaml` defines a single Node Web Service. Render builds React with Vite; `npm run start:render` applies the approved schema and repeatable public-role upgrade, then starts the same Express application. The browser uses relative `/api` URLs, so the frontend and backend share the assigned HTTPS origin without a separate frontend server or public database credentials.
 
 On Render, configuration defaults to its `RENDER_EXTERNAL_URL`, `0.0.0.0` and its injected `PORT`. A custom `APP_ORIGIN` overrides the assigned origin. Production startup requires HTTPS and a database URL using `sslmode=verify-full`. Express trusts one Render ingress hop for per-client rate limiting; local operation continues to reject proxy headers as a source of client identity.
 
@@ -217,3 +218,13 @@ CockroachDB Cloud remains an external database. A paid persistent disk mounted a
 ## 12. Explanation for the professor
 
 “We used a three-tier React, Express and CockroachDB architecture. React collects and displays the records, Express validates and authorizes each operation, and CockroachDB stores the related data. We chose advanced distributed SQL because land registration has strongly related records and concurrent workflows across offices. Our main demonstration is a serializable, atomic ownership transfer: old holdings, new shares, approval, mutation and audit changes succeed together or roll back together. We also verify conflicting sales, foreign keys and role restrictions. The interactive ER tab reads the actual database schema. Our single-node demonstration proves the implemented integrity and transaction behaviour; distributed failover would require a separate multi-node test.”
+
+## Public-user portal implementation
+
+Two login choices send `portal=department` or `portal=public`. After verifying the password, the backend verifies that the saved role belongs to that area before issuing a session. Existing clients without the optional portal field remain supported, but roles always come from the database. Public users render `PublicPortal` rather than the department workspace, so the browser does not fetch department metadata, lookup lists or schema.
+
+After authentication, a deny-by-default guard blocks public accounts from every department endpoint, including future routes. `server/public-portal.ts` accepts read requests only from public accounts and administrators. It uses an explicit SQL projection and the `registration_status='registered'` condition for directory and detail queries. Search touches only public fields; counts and district options are derived only from registered parcels. Parameters are bound, LIKE wildcards escaped, UUIDs validated, and pagination bounded. Directory rows and their total are read in one SQL statement for consistent pagination. Area is returned as text to preserve decimal precision.
+
+Public responses contain survey number, property type, area, location, district/state, office, registration date/status, internal property ID and a boolean encumbrance indicator. The indicator tests active status and today's date range; claimant identities and claim details are never returned. Client-side CSV uses exactly these displayed safe fields and the existing formula-neutralizing export helper. The portal provides no legal-document download or certificate issuance.
+
+The original account profile checks retain owner/officer requirements for the seven existing roles. `public_viewer` requires neither profile, like administrator/bank accounts. Migration adds validated replacement checks before dropping only the two generated legacy constraint names. Each statement is repeatable after interruption; no new migration table or relationship is introduced. Existing SQL users need the same table-alter privileges used by the startup migration.

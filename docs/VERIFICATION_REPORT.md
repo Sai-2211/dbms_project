@@ -1,10 +1,16 @@
 # LandLedger: verification and security report
 
-**Latest automated check:** 11 October 2026; original browser check: 10 October 2026.\
+**Latest automated and public-portal browser checks:** 12 October 2026; original full-workspace browser check: 10 October 2026.\
 **Original browser/implementation checkpoint:** `a112d51`; latest automated checks include the Render configuration follow-up.\
 **Database:** real CockroachDB 25.4.0, local single node  
 **Runtime:** Node.js 22.19.0, macOS  
-**Latest result:** 63 automated tests passed — 20 unit checks and 43 database/API checks. No failures or skipped tests in the final runs. The original checkpoint had 50 passing cases; eight additions cover Render readiness and five cover administrator setup/recovery.
+**Latest result:** 71 automated tests passed — 21 unit checks and 50 database/API checks. No failures or skipped tests in the final runs. The original checkpoint had 50 passing cases; subsequent additions cover Render readiness, administrator recovery and public-user access.
+
+## Public-user access follow-up
+
+The two login areas and administrator-created `public_viewer` accounts were verified against a real local CockroachDB instance. Migration from the original two generated account checks succeeded twice with identical existing account rows and all 37 foreign keys retained. Public account creation, wrong-area login and forged role attempts were tested. Explicit public projections prevented hidden field disclosure/search; registered-only counts, district options and direct-ID details excluded pending/rejected records. Public requests to department APIs, files, accounts, schema and mutation routes returned 403. Query typing, bounds, SQL injection and current-date encumbrance indicators were exercised.
+
+Latest evidence: `evidence/public-unit-tests.tap` (21 passed), `evidence/public-integration-tests.tap` (50 passed), `evidence/public-build.txt` (passed), `evidence/public-dependency-audit.json` (0 known vulnerabilities) and `evidence/public-browser-export-check.json`. Browser checks confirmed admin login/role options, public login, safe details, search, district filters, pagination and a downloaded five-row CSV with only approved public fields. Desktop (1440×1000) and mobile (390×844) had no horizontal overflow. Screenshots are in `images/public-portal-desktop.png` and `images/public-portal-mobile.png`. No private cloud account or database was changed by verification. See [PUBLIC_USER_ACCESS.md](PUBLIC_USER_ACCESS.md) for the implementation and schema explanation.
 
 ## Administrator access follow-up
 
@@ -20,8 +26,8 @@ Actual administrator creation in the user's cloud database remains a step the us
 
 | Check                                        | Result                                             | Evidence                                                                                                                        |
 | -------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Unit validation/auth/export/deployment suite | 20 passed                                          | `npm test`; `evidence/admin-unit-tests.tap`                                                                                     |
-| Isolated CockroachDB/API suite               | 43 passed                                          | `npm run test:integration`; `evidence/admin-integration-tests.tap`                                                              |
+| Unit validation/auth/export/deployment suite | 21 passed                                          | `npm test`; `evidence/public-unit-tests.tap`                                                                                    |
+| Isolated CockroachDB/API suite               | 50 passed                                          | `npm run test:integration`; `evidence/public-integration-tests.tap`                                                             |
 | TypeScript and frontend production build     | Passed                                             | `npm run build`                                                                                                                 |
 | Installed dependency advisory audit          | 0 known vulnerabilities                            | `npm audit`, at verification time                                                                                               |
 | Standalone built frontend/API smoke check    | Passed                                             | HTML and built script served; unauthorized records rejected; authenticated live schema returned                                 |
@@ -204,3 +210,14 @@ The inventory combines the original successful local output and the Render follo
 41. Render demo bootstrap creates private accounts and document files, is idempotent, and refuses unrelated records
 42. cloud administrator setup creates an audited login, preserves existing passwords unless reset, and recovers access
 43. administrator setup does not elevate another role or replace an account after concurrent creation
+
+### Public-user additions
+
+- Unit: public users have no generic department-resource read/write permissions.
+- Integration: repeatable legacy account-check migration preserves existing rows and foreign keys.
+- Integration: administrator-created public accounts, no visitor signup and no login role spoofing.
+- Integration: registered-only public projections, search, counts, safe district options and details.
+- Integration: private department endpoints, file downloads, schema and all mutations denied.
+- Integration: bounded, typed public filters and pagination; hidden filter keys rejected.
+- Integration: database rejects unknown roles and public accounts linked to private profiles.
+- Integration: encumbrance indicator respects active status and date range without claimant disclosure.

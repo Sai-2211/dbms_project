@@ -39,3 +39,7 @@ The repository is empty. The supplied PDF describes entities numbered 1–3 and 
 - Use CockroachDB as the actual persistent database. Demonstration data is clearly identified; no silent replacement database or browser storage fallback.
 
 Approval requested: permit the reconstructed four entities, foreign-key/constraint refinements and six supporting tables above. Further changes beyond this proposal will be brought back for permission.
+
+## Public-user role follow-up — 12 October 2026
+
+The user authorized implementation with “just explain the changes, once it is done” and then requested continuation of the different login types. The approved change adds `public_viewer` to the existing `users` role/profile checks, requiring null owner/officer links. No new tables, columns or foreign keys were introduced. The upgrade preserves rows and the 18-table/37-relationship model; public-data restrictions are enforced through explicit backend projections. See [PUBLIC_USER_ACCESS.md](PUBLIC_USER_ACCESS.md).

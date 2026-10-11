@@ -113,12 +113,12 @@ CREATE TABLE IF NOT EXISTS transaction_parties (
 );
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), username STRING NOT NULL UNIQUE, password_hash STRING NOT NULL,
-  role STRING NOT NULL CHECK(role IN ('administrator','owner','survey_officer','valuation_officer','sub_registrar','bank_verifier','auditor')),
+  role STRING NOT NULL CONSTRAINT users_role_allowed CHECK(role IN ('administrator','owner','survey_officer','valuation_officer','sub_registrar','bank_verifier','auditor','public_viewer')),
   owner_id UUID REFERENCES owners(id), officer_id UUID REFERENCES officers(id), active BOOL NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CHECK((role = 'owner' AND owner_id IS NOT NULL AND officer_id IS NULL)
+  CONSTRAINT users_role_profile CHECK((role = 'owner' AND owner_id IS NOT NULL AND officer_id IS NULL)
     OR (role IN ('survey_officer','valuation_officer','sub_registrar','auditor') AND officer_id IS NOT NULL AND owner_id IS NULL)
-    OR (role IN ('administrator','bank_verifier') AND owner_id IS NULL AND officer_id IS NULL))
+    OR (role IN ('administrator','bank_verifier','public_viewer') AND owner_id IS NULL AND officer_id IS NULL))
 );
 CREATE TABLE IF NOT EXISTS audit_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(), actor_id UUID NOT NULL REFERENCES users(id), action STRING NOT NULL,

@@ -61,3 +61,7 @@ erDiagram
 - Audit summaries store operation names and field names, not raw identity numbers, passwords or document contents.
 
 The executable definition is in `server/schema.sql`. The [approval record](SCHEMA_APPROVAL.md) records why the missing fields/supporting tables were introduced.
+
+## Public-user account update
+
+Approved through the follow-up request to implement and explain the changes. The existing `users.role` check now includes `public_viewer`; the profile check permits that role only with `owner_id IS NULL AND officer_id IS NULL`. These two checks have explicit names, `users_role_allowed` and `users_role_profile`. `server/upgrade-public-role.ts` upgrades the original generated checks after validating their replacements. All existing rows, column definitions, tables and 37 foreign keys are preserved. Public access uses backend projections, not new database entities.

@@ -55,6 +55,7 @@ import {
 import type { Actor, Field, Resource } from "../server/resources";
 import { api, ApiError } from "./api";
 import { csvCell } from "./csv";
+import PublicPortal from "./PublicPortal";
 const SchemaExplorer = lazy(() => import("./SchemaExplorer"));
 
 type Meta = Resource & { canWrite: boolean };
@@ -267,6 +268,14 @@ export default function App() {
         <Loading />
       </div>
     );
+  if (actor?.role === "public_viewer")
+    return (
+      <PublicPortal
+        actor={actor}
+        brand={<Brand />}
+        onLogout={() => setActor(null)}
+      />
+    );
   return actor ? (
     <Workspace actor={actor} onLogout={() => setActor(null)} />
   ) : (
@@ -299,6 +308,7 @@ function Login({
   const [password, setPassword] = useState("");
   const [error, setError] = useState(initialError);
   const [busy, setBusy] = useState(false);
+  const [portal, setPortal] = useState<"department" | "public">("department");
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -307,7 +317,7 @@ function Login({
       onLogin(
         await api<Actor>("/auth/login", {
           method: "POST",
-          body: JSON.stringify({ username, password }),
+          body: JSON.stringify({ username, password, portal }),
         }),
       );
     } catch (e) {
@@ -342,9 +352,34 @@ function Login({
       </section>
       <section className="login-panel">
         <div className="login-form">
-          <span className="eyebrow">REGISTRY WORKSPACE</span>
+          <span className="eyebrow">
+            {portal === "public"
+              ? "PUBLIC PROPERTY PORTAL"
+              : "REGISTRY WORKSPACE"}
+          </span>
           <h2>Welcome back.</h2>
-          <p>Sign in to manage and explore your land records.</p>
+          <p>
+            {portal === "public"
+              ? "View registered properties with your administrator-issued account."
+              : "Sign in to manage land records and department services."}
+          </p>
+          <div className="login-access-tabs" aria-label="Sign-in area">
+            {(["department", "public"] as const).map((value) => (
+              <button
+                type="button"
+                key={value}
+                aria-pressed={portal === value}
+                onClick={() => {
+                  setPortal(value);
+                  setError("");
+                }}
+              >
+                {value === "department"
+                  ? "Department / administrator"
+                  : "Public user"}
+              </button>
+            ))}
+          </div>
           <form onSubmit={submit}>
             <label>
               Username
@@ -378,11 +413,15 @@ function Login({
               ) : (
                 <LockKeyhole size={18} />
               )}{" "}
-              {busy ? "Signing in…" : "Sign in to workspace"}
+              {busy
+                ? "Signing in…"
+                : portal === "public"
+                  ? "Sign in to public portal"
+                  : "Sign in to workspace"}
               <ArrowRight size={18} />
             </button>
           </form>
-          {import.meta.env.DEV && (
+          {import.meta.env.DEV && portal === "department" && (
             <div className="demo-hint">
               <strong>Local demonstration</strong>
               <p>
@@ -402,7 +441,8 @@ function Login({
           )}
           <div className="login-note">
             <ShieldCheck size={17} />
-            Your access is governed by your registry role.
+            Accounts are created by an administrator. Contact your registry
+            office for access.
           </div>
         </div>
       </section>
@@ -2357,7 +2397,7 @@ function AccountsDrawer({
   const [data, setData] = useState<Row>({
     username: "",
     password: "",
-    role: "owner",
+    role: "public_viewer",
     owner_id: "",
     officer_id: "",
   });
@@ -2375,7 +2415,7 @@ function AccountsDrawer({
       setData({
         username: "",
         password: "",
-        role: "owner",
+        role: "public_viewer",
         owner_id: "",
         officer_id: "",
       });
@@ -2388,7 +2428,7 @@ function AccountsDrawer({
   return (
     <Drawer
       title="User accounts"
-      subtitle="Role-based access to the registry workspace."
+      subtitle="Create public read-only accounts or department accounts with specific permissions."
       onClose={onClose}
     >
       <div className="drawer-body">
@@ -2428,6 +2468,7 @@ function AccountsDrawer({
               >
                 {[
                   "administrator",
+                  "public_viewer",
                   "owner",
                   "survey_officer",
                   "valuation_officer",
@@ -2436,7 +2477,9 @@ function AccountsDrawer({
                   "auditor",
                 ].map((r) => (
                   <option value={r} key={r}>
-                    {nice(r)}
+                    {r === "public_viewer"
+                      ? "Public user · read-only"
+                      : nice(r)}
                   </option>
                 ))}
               </select>
@@ -2514,7 +2557,11 @@ function AccountsDrawer({
                     </span>
                     <div>
                       <strong>{a.username}</strong>
-                      <small>{nice(a.role)}</small>
+                      <small>
+                        {a.role === "public_viewer"
+                          ? "Public user · read-only"
+                          : nice(a.role)}
+                      </small>
                     </div>
                     <Badge value={a.active ? "active" : "inactive"} />
                   </div>

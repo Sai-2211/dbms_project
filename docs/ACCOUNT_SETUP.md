@@ -2,7 +2,7 @@
 
 Deploying the application creates its tables, but does not create user accounts. Setting `DEMO_ADMIN_PASSWORD` in Render does not create or update a password by itself. On Render Free, initialize the administrator from your own Mac because that plan has no Shell access.
 
-This command uses the existing `users` and `audit_events` tables. It creates **only the administrator account**, not demo parcels, staff profiles, sample PDFs or other records. The approved schema is unchanged. Existing public and private record data are left intact.
+This command uses the existing `users` and `audit_events` tables. It creates **only the administrator account**, not demo parcels, staff profiles, sample PDFs or other records. The administrator command itself makes no schema changes; deployment separately applies the approved public-user role upgrade. Existing public and private record data are left intact.
 
 ## Run the setup
 
@@ -54,3 +54,7 @@ Account creation in the web interface remains **administrator-only**. Once signe
 ## Render Free document-storage limitation
 
 For a free service, set `UPLOAD_DIR=uploads` and do not attach a paid disk. This directory is ephemeral: uploaded bytes can disappear after idle shutdowns, restarts or deployments while their CockroachDB metadata remains. The administrator command intentionally does not seed sample document references to files on your Mac. Persistent cloud document storage is a separate required update for a complete free-hosted upload/download workflow; it has not been implemented by this account-setup change.
+
+## Create accounts after administrator setup
+
+Use **Department / administrator** when signing in. Open the top-right account menu → **User accounts → Add user account**. Select **Public user · read-only** for a general visitor; choose a username and private password of 12–128 characters. The visitor signs in through **Public user** and can view safe registered-property information only. Existing owner and officer accounts use the department area and require their matching linked profiles. There is no public self-registration. See [PUBLIC_USER_ACCESS.md](PUBLIC_USER_ACCESS.md).

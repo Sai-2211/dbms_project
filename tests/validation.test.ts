@@ -219,3 +219,17 @@ test("CSV exports neutralize formulas including leading whitespace and quote cel
   assert.equal(csvCell('a,"b"'), '"a,""b"""');
   assert.equal(csvCell("Plain text"), '"Plain text"');
 });
+
+test("public users have no generic department resource permissions, even for broadly readable resources", () => {
+  const actor: Actor = {
+    id: randomUUID(),
+    username: "test-public",
+    role: "public_viewer",
+    owner_id: null,
+    officer_id: null,
+  };
+  for (const resource of resourceMap.values()) {
+    assert.equal(canRead(actor, resource), false, resource.key);
+    assert.equal(canWrite(actor, resource), false, resource.key);
+  }
+});
