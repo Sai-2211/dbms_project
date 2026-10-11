@@ -1,17 +1,27 @@
 # LandLedger: verification and security report
 
-**Date:** 10 October 2026  
+**Latest automated check:** 11 October 2026; original browser check: 10 October 2026.\
 **Original browser/implementation checkpoint:** `a112d51`; latest automated checks include the Render configuration follow-up.\
 **Database:** real CockroachDB 25.4.0, local single node  
 **Runtime:** Node.js 22.19.0, macOS  
-**Latest result:** 58 automated tests passed — 17 unit checks and 41 database/API checks. No failures or skipped tests in the final runs. The original checkpoint had 50 passing cases; the eight additions cover Render readiness.
+**Latest result:** 63 automated tests passed — 20 unit checks and 43 database/API checks. No failures or skipped tests in the final runs. The original checkpoint had 50 passing cases; eight additions cover Render readiness and five cover administrator setup/recovery.
+
+## Administrator access follow-up
+
+On 11 October, the supplied public Render `/api/health` endpoint returned `{"status":"connected","database":"CockroachDB"}`. This confirms hosted database connectivity, but does not establish that an administrator has been created or verify a successful live login. No private cloud SQL credentials were supplied to or used by this verification.
+
+The new `npm run db:admin` CLI privately prompts for the exact cloud URL and an application password, creates only the fixed administrator identity, and records an audit event atomically. The explicit `--reset-password` option can recover that administrator, including reactivating it. Existing passwords are otherwise preserved; identities belonging to another role cannot be elevated. No schema change, public signup, automatic password reset, or sample document creation was added. Cloud connection input requires verified TLS, and passwords are salted/hashed through the existing authentication helper.
+
+Latest evidence: `evidence/admin-unit-tests.tap` (20 passed), `evidence/admin-integration-tests.tap` (43 passed), and `evidence/admin-build.txt` (TypeScript/frontend build passed). Three new unit cases exercise fixed identity, URL/TLS/placeholder validation and private password bounds. Two new database/API cases verify successful login after account creation, existing-password preservation, explicit recovery, secret-free audit records, prevention of role elevation and concurrent initialization without password replacement. A terminal smoke check confirmed connection/application-password prompts do not echo their input and connection failures display bounded messages without secrets. Its deliberately fictional connection was not used to modify the cloud database.
+
+Actual administrator creation in the user's cloud database remains a step the user performs privately with the CLI. [ACCOUNT_SETUP.md](ACCOUNT_SETUP.md) documents it and the Render Free document-storage limitation.
 
 ## Verified results
 
 | Check                                        | Result                                             | Evidence                                                                                                                        |
 | -------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Unit validation/auth/export/deployment suite | 17 passed                                          | `npm test`; `evidence/render-unit-tests.tap`                                                                                    |
-| Isolated CockroachDB/API suite               | 41 passed                                          | `npm run test:integration`; `evidence/render-integration-tests.tap`                                                             |
+| Unit validation/auth/export/deployment suite | 20 passed                                          | `npm test`; `evidence/admin-unit-tests.tap`                                                                                     |
+| Isolated CockroachDB/API suite               | 43 passed                                          | `npm run test:integration`; `evidence/admin-integration-tests.tap`                                                              |
 | TypeScript and frontend production build     | Passed                                             | `npm run build`                                                                                                                 |
 | Installed dependency advisory audit          | 0 known vulnerabilities                            | `npm audit`, at verification time                                                                                               |
 | Standalone built frontend/API smoke check    | Passed                                             | HTML and built script served; unauthorized records rejected; authenticated live schema returned                                 |
@@ -145,6 +155,9 @@ The inventory combines the original successful local output and the Render follo
 15. production rejects insecure database TLS and non-HTTPS website origins
 16. configuration errors reject malformed origins, ports and SQL password placeholders without leaking secrets
 17. Render demo initialization requires an explicit private password and Render environment
+18. administrator setup uses a fixed identity and requires a verified cloud URL
+19. administrator setup rejects malformed connections and placeholders without leaking SQL passwords
+20. administrator setup requires a private bounded application password
 
 ### CockroachDB/API checks
 
@@ -189,3 +202,5 @@ The inventory combines the original successful local output and the Render follo
 39. survey and valuation officers cannot maintain a parcel from another registration office
 40. Render proxy mode keeps client login limits separate and rejects spoofed outer forwarded addresses
 41. Render demo bootstrap creates private accounts and document files, is idempotent, and refuses unrelated records
+42. cloud administrator setup creates an audited login, preserves existing passwords unless reset, and recovers access
+43. administrator setup does not elevate another role or replace an account after concurrent creation

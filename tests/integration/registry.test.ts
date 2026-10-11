@@ -30,6 +30,8 @@ const { insert, approveTransfer, validateRelations } =
   await import("../../server/business.js");
 const { hashPassword, verifyPassword } = await import("../../server/auth.js");
 const { resourceMap } = await import("../../server/resources.js");
+const { initializeAdministrator, administratorUsername } =
+  await import("../../server/bootstrap-admin.js");
 let child: ChildProcess | undefined;
 const deploymentChildren = new Set<ChildProcess>();
 let uploadDir = "";
@@ -156,6 +158,111 @@ after(async () => {
   await control.query(`DROP DATABASE IF EXISTS ${name} CASCADE`);
   await control.end();
   if (uploadDir) await rm(uploadDir, { recursive: true, force: true });
+});
+
+test("cloud administrator setup creates an audited login, preserves existing passwords unless reset, and recovers access", async () => {
+  const first = "PrivateAdmin'\"தமிழ்@2026";
+  const changed = "PrivateChangedAdmin@2026";
+  assert.equal(await initializeAdministrator(pool, first), "created");
+  const initial = (
+    await pool.query("SELECT * FROM users WHERE username=$1", [
+      administratorUsername,
+    ])
+  ).rows[0];
+  assert.equal(initial.role, "administrator");
+  assert.equal(verifyPassword(first, initial.password_hash), true);
+  assert.equal(initial.owner_id, null);
+  assert.equal(initial.officer_id, null);
+  const login = (password: string) =>
+    fetch("http://127.0.0.1:3101/api/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-LandLedger-Request": "1",
+        Origin: "http://127.0.0.1:3101",
+      },
+      body: JSON.stringify({ username: administratorUsername, password }),
+    });
+  try {
+    assert.equal((await login(first)).status, 200);
+    assert.equal(await initializeAdministrator(pool, changed), "exists");
+    assert.equal((await login(first)).status, 200);
+    assert.equal((await login(changed)).status, 401);
+    await pool.query("UPDATE users SET active=false WHERE id=$1", [initial.id]);
+    assert.equal((await login(first)).status, 401);
+    assert.equal(await initializeAdministrator(pool, changed, true), "reset");
+    assert.equal((await login(changed)).status, 200);
+    assert.equal((await login(first)).status, 401);
+    const events = (
+      await pool.query(
+        "SELECT action,summary FROM audit_events WHERE actor_id=$1 ORDER BY occurred_at",
+        [initial.id],
+      )
+    ).rows;
+    assert.deepEqual(
+      events.map((event) => event.action),
+      ["create", "reset_password"],
+    );
+    const serialized = JSON.stringify(events);
+    assert.equal(serialized.includes(first), false);
+    assert.equal(serialized.includes(changed), false);
+    assert.equal(serialized.includes(initial.password_hash), false);
+  } finally {
+    await pool.query("DELETE FROM audit_events WHERE actor_id=$1", [
+      initial.id,
+    ]);
+    await pool.query("DELETE FROM users WHERE id=$1", [initial.id]);
+  }
+});
+
+test("administrator setup does not elevate another role or replace an account after concurrent creation", async () => {
+  const first = "ConcurrentPrivateAdmin@2026";
+  const second = "OtherConcurrentPrivateAdmin@2026";
+  const other = (
+    await pool.query(
+      "INSERT INTO users(username,password_hash,role) VALUES($1,$2,'bank_verifier') RETURNING id,password_hash",
+      [administratorUsername, hashPassword(first)],
+    )
+  ).rows[0];
+  try {
+    await assert.rejects(
+      initializeAdministrator(pool, second, true),
+      /another role/,
+    );
+    assert.deepEqual(
+      (
+        await pool.query("SELECT role,password_hash FROM users WHERE id=$1", [
+          other.id,
+        ])
+      ).rows[0],
+      { role: "bank_verifier", password_hash: other.password_hash },
+    );
+  } finally {
+    await pool.query("DELETE FROM users WHERE id=$1", [other.id]);
+  }
+  try {
+    const results = await Promise.all([
+      initializeAdministrator(pool, first),
+      initializeAdministrator(pool, second),
+    ]);
+    assert.deepEqual(results.slice().sort(), ["created", "exists"]);
+    const users = (
+      await pool.query("SELECT password_hash FROM users WHERE username=$1", [
+        administratorUsername,
+      ])
+    ).rows;
+    assert.equal(users.length, 1);
+    const winner = results[0] === "created" ? first : second;
+    assert.equal(verifyPassword(winner, users[0].password_hash), true);
+  } finally {
+    await pool.query(
+      "DELETE FROM audit_events WHERE actor_id IN (SELECT id FROM users WHERE username=$1)",
+      [administratorUsername],
+    );
+    await pool.query("DELETE FROM users WHERE username=$1", [
+      administratorUsername,
+    ]);
+  }
 });
 
 test("Render proxy mode keeps client login limits separate and rejects spoofed outer forwarded addresses", async () => {

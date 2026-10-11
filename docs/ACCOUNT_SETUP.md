@@ -1,0 +1,56 @@
+# First administrator login on Render Free
+
+Deploying the application creates its tables, but does not create user accounts. Setting `DEMO_ADMIN_PASSWORD` in Render does not create or update a password by itself. On Render Free, initialize the administrator from your own Mac because that plan has no Shell access.
+
+This command uses the existing `users` and `audit_events` tables. It creates **only the administrator account**, not demo parcels, staff profiles, sample PDFs or other records. The approved schema is unchanged. Existing public and private record data are left intact.
+
+## Run the setup
+
+1. In CockroachDB Cloud, select your cluster, open **Networking → IP Allowlist**, and add **Current Network** so your Mac can connect. Keep the Render outbound ranges too.
+2. In VS Code, open your local `dbms_project` repository folder and open **Terminal → New Terminal**. Run:
+
+   ```sh
+   git pull origin main
+   npm ci
+   npm run db:admin
+   ```
+
+3. At **Paste DATABASE_URL from Render (hidden)**, paste the exact complete value saved in your Render service, including the SQL password and `sslmode=verify-full`. Press Enter. Pasted characters are deliberately hidden. The command shows the destination host and database name, without the SQL password, so you can check it is the intended database.
+4. Choose and confirm a private **application login password** of 12–128 characters. These entries are hidden too. This password can be different from the SQL password; it is the password you will type on the website. The command does not read `DEMO_ADMIN_PASSWORD` automatically.
+5. When **Administrator created** appears, sign in to the hosted website using:
+
+   - Username: `admin@landledger.local`
+   - Password: the application password you just entered in the terminal.
+
+No deployment or restart is required for the account to become available: this command writes to the same CockroachDB database the site reads.
+
+## Recover an existing administrator
+
+If the command reports **Administrator already exists**, its current password was deliberately left unchanged. To replace that password, run:
+
+```sh
+npm run db:admin -- --reset-password
+```
+
+Enter the same cloud URL and choose/confirm a new application password. This explicit recovery command replaces the fixed administrator's password and reactivates that account if it exists; it creates the account if it is missing. It does not replace any other accounts or elevate a username that belongs to another role. The creation/reset is recorded in the application audit trail without storing the password in the audit entry.
+
+Passwords are stored as salted scrypt hashes using the application's existing authentication helper. Secrets are not printed, placed in command arguments, or written to a configuration file by the setup command. Connection URLs must identify a database and use verified TLS. Only CockroachDB is accepted. The existing SQL user must have permission to read/write `users` and insert `audit_events`.
+
+The existing session system does not revoke individual already-issued tokens on password change; recovery replaces the credential used for future sign-ins. Account deactivation remains the mechanism for rejecting an existing account's sessions.
+
+## Troubleshooting
+
+| Symptom                              | Check                                                                                                                                                |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Nothing appears while pasting/typing | Secret input is hidden. Paste/type and press Enter.                                                                                                  |
+| Cloud connection fails               | Mac's Current Network allowlist entry, full URL, URL-encoded SQL password, TLS and cluster availability.                                             |
+| Missing application tables           | The setup URL must match Render's `DATABASE_URL`, and Render's migration must have succeeded.                                                        |
+| Wrong SQL username/password          | Use the database SQL credentials in `DATABASE_URL`, rather than an application login password.                                                       |
+| Website still rejects the login      | Same database in Render and the setup command; exact application password chosen during setup; use the reset command if the account already existed. |
+| Too many sign-in attempts            | Allow the 15-minute login-limit window to expire before trying again.                                                                                |
+
+Account creation in the web interface remains **administrator-only**. Once signed in, use the **Users** workspace for additional accounts. No public signup route or new role was added as part of this login repair.
+
+## Render Free document-storage limitation
+
+For a free service, set `UPLOAD_DIR=uploads` and do not attach a paid disk. This directory is ephemeral: uploaded bytes can disappear after idle shutdowns, restarts or deployments while their CockroachDB metadata remains. The administrator command intentionally does not seed sample document references to files on your Mac. Persistent cloud document storage is a separate required update for a complete free-hosted upload/download workflow; it has not been implemented by this account-setup change.

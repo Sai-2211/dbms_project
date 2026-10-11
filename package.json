@@ -13,6 +13,7 @@
     "db:migrate": "tsx server/migrate.ts",
     "db:seed": "tsx server/seed.ts",
     "db:bootstrap-demo": "tsx server/bootstrap-demo.ts",
+    "db:admin": "tsx server/bootstrap-admin.ts",
     "setup": "node scripts/setup.mjs",
     "test": "node --import tsx --test tests/*.test.ts",
     "test:integration": "node --import tsx --test tests/integration/*.test.ts"

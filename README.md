@@ -88,9 +88,11 @@ The seed creates 24 fictional properties, nine owners, four districts and exampl
 
 Start with [the step-by-step demo guide](docs/DEMO_GUIDE.md). It covers a new registration, a transfer, verification, joint ownership, rollback, role access and the ER explorer. The dashboard is populated from database queries, rather than hardcoded counts.
 
-Read [the detailed architecture report](docs/ARCHITECTURE.md) for the frontend, backend, database connection and transfer workflow. [The verification report](docs/VERIFICATION_REPORT.md) contains all 58 passing test cases, security checks, browser evidence and practical limitations.
+Read [the detailed architecture report](docs/ARCHITECTURE.md) for the frontend, backend, database connection and transfer workflow. [The verification report](docs/VERIFICATION_REPORT.md) contains all 63 passing test cases, security checks, browser evidence and practical limitations.
 
 ## Host on Render
+
+**Already deployed on Render Free but cannot log in?** Follow [first administrator setup](docs/ACCOUNT_SETUP.md): run `npm run db:admin` from your Mac and privately enter the same cloud database URL as the hosted app. This creates only the administrator; password recovery uses the explicit `--reset-password` option. Account creation stays administrator-only. Use `UPLOAD_DIR=uploads` on Free; persistent document storage requires a separate update because free service files are ephemeral.
 
 Follow [the Render deployment guide](docs/RENDER_DEPLOYMENT.md). Import this repository using **New → Blueprint**: `render.yaml` configures a Node Web Service that serves React and the API together, connects to your external CockroachDB Cloud database, and keeps document files on a persistent disk. It selects a **paid service and disk**; review the cost in Render before creating them.
 
@@ -110,7 +112,7 @@ npm run test:integration
 npm run build
 ```
 
-The integration tests require a reachable CockroachDB instance and a development SQL user allowed to create databases. Each run creates its own `landledger_test_*` databases and removes only those test databases afterward. The tests exercise all 37 foreign keys, full rollback, conflicting transfers, joint ownership, document checks, role access, status filters, SQL injection, escaped HTML, upload/download, certificates, surveys, live schema accuracy, Render proxy limits and private demo initialization. The latest suites passed 17 unit and 41 integration tests. GitHub Actions repeats the checks on each push and pull request.
+The integration tests require a reachable CockroachDB instance and a development SQL user allowed to create databases. Each run creates its own `landledger_test_*` databases and removes only those test databases afterward. The tests exercise all 37 foreign keys, full rollback, conflicting transfers, joint ownership, document checks, role access, status filters, SQL injection, escaped HTML, upload/download, certificates, surveys, live schema accuracy, Render proxy limits, private demo initialization and administrator creation/recovery. The latest suites passed 20 unit and 43 integration tests. GitHub Actions repeats the checks on each push and pull request.
 
 The application never substitutes SQLite, PostgreSQL, browser storage or mock data when CockroachDB is unavailable. The interface displays a connection or operation error.
 

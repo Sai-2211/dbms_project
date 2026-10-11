@@ -4,6 +4,8 @@ This guide deploys **one Node Web Service**: Express serves the built React fron
 
 The repository includes `render.yaml`, so Render can import the settings. **The Blueprint selects a paid 512 MB service (`0.5c-512mb`) and a 1 GB persistent disk. Review Render's displayed cost before creating the resources.** A free service does not support this persistent disk or the Shell used for initialization. No Render PostgreSQL database is needed.
 
+**Render Free alternative:** create a Free Web Service manually, use `UPLOAD_DIR=uploads`, omit the disk, and initialize the first administrator from your Mac using [ACCOUNT_SETUP.md](ACCOUNT_SETUP.md). The remaining build/start/environment settings still apply. This provides working record forms and administrator account management; persistent document storage needs a separate cloud-storage implementation. The paid Blueprint below is optional and should not be imported if your budget is zero.
+
 ## 1. Prepare CockroachDB Cloud
 
 1. Open your existing cluster and confirm that the database **`sai_2211`** exists. Creating the cluster alone does not connect this application.
