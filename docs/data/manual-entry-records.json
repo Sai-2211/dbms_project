@@ -1,0 +1,1843 @@
+{
+  "name": "Tamil Nadu fictional manual-entry training set",
+  "version": 1,
+  "prepared_on": "2026-10-12",
+  "records": [
+    {
+      "key": "districts",
+      "alias": "D-CH",
+      "values": {
+        "district_name": "Chennai",
+        "state_name": "Tamil Nadu"
+      }
+    },
+    {
+      "key": "districts",
+      "alias": "D-TH",
+      "values": {
+        "district_name": "Thanjavur",
+        "state_name": "Tamil Nadu"
+      }
+    },
+    {
+      "key": "offices",
+      "alias": "OFF-CH",
+      "values": {
+        "office_name": "Adyar Property Registry - Training",
+        "office_code": "TRN-TN-ADY-01",
+        "district_id": "D-CH",
+        "address": "24 Registry Lane, Adyar, Chennai, Tamil Nadu 600020",
+        "phone": ""
+      }
+    },
+    {
+      "key": "offices",
+      "alias": "OFF-TH",
+      "values": {
+        "office_name": "Papanasam Property Registry - Training",
+        "office_code": "TRN-TN-PAP-01",
+        "district_id": "D-TH",
+        "address": "8 Taluk Office Road, Papanasam, Thanjavur, Tamil Nadu 614205",
+        "phone": ""
+      }
+    },
+    {
+      "key": "owners",
+      "alias": "O-A",
+      "values": {
+        "owner_name": "Aarav Kumar",
+        "identification_no": "TRAIN-TN-ID-001",
+        "address": "17 Lake View Street, Adyar, Chennai, Tamil Nadu 600020",
+        "phone": "",
+        "email": "aarav.kumar@example.test"
+      }
+    },
+    {
+      "key": "owners",
+      "alias": "O-B",
+      "values": {
+        "owner_name": "Meera Raman",
+        "identification_no": "TRAIN-TN-ID-002",
+        "address": "42 Canal Road, Thiruvanmiyur, Chennai, Tamil Nadu 600041",
+        "phone": "",
+        "email": "meera.raman@example.test"
+      }
+    },
+    {
+      "key": "owners",
+      "alias": "O-C",
+      "values": {
+        "owner_name": "Kavin Raj",
+        "identification_no": "TRAIN-TN-ID-003",
+        "address": "9 Second Cross Street, Velachery, Chennai, Tamil Nadu 600042",
+        "phone": "",
+        "email": "kavin.raj@example.test"
+      }
+    },
+    {
+      "key": "owners",
+      "alias": "O-D",
+      "values": {
+        "owner_name": "Priya Nair",
+        "identification_no": "TRAIN-TN-ID-004",
+        "address": "31 Market Street, Adyar, Chennai, Tamil Nadu 600020",
+        "phone": "",
+        "email": "priya.nair@example.test"
+      }
+    },
+    {
+      "key": "owners",
+      "alias": "O-E",
+      "values": {
+        "owner_name": "Arjun Das",
+        "identification_no": "TRAIN-TN-ID-005",
+        "address": "12 Mill Road, Papanasam, Thanjavur, Tamil Nadu 614205",
+        "phone": "",
+        "email": "arjun.das@example.test"
+      }
+    },
+    {
+      "key": "owners",
+      "alias": "O-F",
+      "values": {
+        "owner_name": "Diya Menon",
+        "identification_no": "TRAIN-TN-ID-006",
+        "address": "6 South Agraharam Street, Papanasam, Thanjavur, Tamil Nadu 614205",
+        "phone": "",
+        "email": "diya.menon@example.test"
+      }
+    },
+    {
+      "key": "owners",
+      "alias": "O-G",
+      "values": {
+        "owner_name": "Rohan Iyer",
+        "identification_no": "TRAIN-TN-ID-007",
+        "address": "18 Station Road, Kumbakonam, Thanjavur, Tamil Nadu 612001",
+        "phone": "",
+        "email": "rohan.iyer@example.test"
+      }
+    },
+    {
+      "key": "owners",
+      "alias": "O-H",
+      "values": {
+        "owner_name": "Ananya Devi",
+        "identification_no": "TRAIN-TN-ID-008",
+        "address": "27 Temple Tank Street, Papanasam, Thanjavur, Tamil Nadu 614205",
+        "phone": "",
+        "email": "ananya.devi@example.test"
+      }
+    },
+    {
+      "key": "officers",
+      "alias": "R-CH",
+      "values": {
+        "officer_name": "Lakshmi Srinivasan",
+        "designation": "sub_registrar",
+        "office_id": "OFF-CH",
+        "email": "lakshmi.registrar@example.test",
+        "phone": "",
+        "active": true
+      }
+    },
+    {
+      "key": "officers",
+      "alias": "S-CH",
+      "values": {
+        "officer_name": "Suresh Balan",
+        "designation": "survey_officer",
+        "office_id": "OFF-CH",
+        "email": "suresh.survey@example.test",
+        "phone": "",
+        "active": true
+      }
+    },
+    {
+      "key": "officers",
+      "alias": "V-CH",
+      "values": {
+        "officer_name": "Nandhini Ravi",
+        "designation": "valuation_officer",
+        "office_id": "OFF-CH",
+        "email": "nandhini.valuation@example.test",
+        "phone": "",
+        "active": true
+      }
+    },
+    {
+      "key": "officers",
+      "alias": "A-CH",
+      "values": {
+        "officer_name": "Ganesh Narayanan",
+        "designation": "auditor",
+        "office_id": "OFF-CH",
+        "email": "ganesh.audit@example.test",
+        "phone": "",
+        "active": true
+      }
+    },
+    {
+      "key": "officers",
+      "alias": "R-TH",
+      "values": {
+        "officer_name": "Revathi Murugan",
+        "designation": "sub_registrar",
+        "office_id": "OFF-TH",
+        "email": "revathi.registrar@example.test",
+        "phone": "",
+        "active": true
+      }
+    },
+    {
+      "key": "officers",
+      "alias": "S-TH",
+      "values": {
+        "officer_name": "Mohan Selvam",
+        "designation": "survey_officer",
+        "office_id": "OFF-TH",
+        "email": "mohan.survey@example.test",
+        "phone": "",
+        "active": true
+      }
+    },
+    {
+      "key": "officers",
+      "alias": "V-TH",
+      "values": {
+        "officer_name": "Deepa Krishnan",
+        "designation": "valuation_officer",
+        "office_id": "OFF-TH",
+        "email": "deepa.valuation@example.test",
+        "phone": "",
+        "active": true
+      }
+    },
+    {
+      "key": "officers",
+      "alias": "A-TH",
+      "values": {
+        "officer_name": "Bharath Rajan",
+        "designation": "auditor",
+        "office_id": "OFF-TH",
+        "email": "bharath.audit@example.test",
+        "phone": "",
+        "active": true
+      }
+    },
+    {
+      "key": "properties",
+      "alias": "P1",
+      "values": {
+        "survey_no": "TRN-CH-214/3A",
+        "property_type": "residential",
+        "area": "240.0000",
+        "location": "Lake View Street, Adyar, Chennai",
+        "district_id": "D-CH",
+        "office_id": "OFF-CH",
+        "boundary_details": "North: Lake View Street; South: parcel 214/3B; East: 3 m access lane; West: parcel 214/2."
+      }
+    },
+    {
+      "key": "properties",
+      "alias": "P2",
+      "values": {
+        "survey_no": "TRN-CH-87/5A",
+        "property_type": "commercial",
+        "area": "180.0000",
+        "location": "Market Street, Adyar, Chennai",
+        "district_id": "D-CH",
+        "office_id": "OFF-CH",
+        "boundary_details": "North: market access road; South: parcel 87/6; East: parcel 87/5B; West: 4 m service lane."
+      }
+    },
+    {
+      "key": "properties",
+      "alias": "P3",
+      "values": {
+        "survey_no": "TRN-TH-142/1A",
+        "property_type": "agricultural",
+        "area": "8100.0000",
+        "location": "Vadakku Mangudi village, Papanasam taluk, Thanjavur",
+        "district_id": "D-TH",
+        "office_id": "OFF-TH",
+        "boundary_details": "North: irrigation channel; South: parcel 142/2; East: bund adjoining parcel 143/1; West: village cart track."
+      }
+    },
+    {
+      "key": "properties",
+      "alias": "P4",
+      "values": {
+        "survey_no": "TRN-TH-305/17",
+        "property_type": "industrial",
+        "area": "2400.0000",
+        "location": "Plot I-17, Papanasam Industrial Layout, Thanjavur",
+        "district_id": "D-TH",
+        "office_id": "OFF-TH",
+        "boundary_details": "North: estate service road; South: plot I-18; East: 6 m internal road; West: plot I-16."
+      }
+    },
+    {
+      "key": "properties",
+      "alias": "P5",
+      "values": {
+        "survey_no": "TRN-CH-219/7A",
+        "property_type": "residential",
+        "area": "150.0000",
+        "location": "Third Cross Street, Thiruvanmiyur, Chennai",
+        "district_id": "D-CH",
+        "office_id": "OFF-CH",
+        "boundary_details": "North: 6 m residential road; South: parcel 219/8; East: parcel 219/7B; West: parcel 219/6."
+      }
+    },
+    {
+      "key": "properties",
+      "alias": "P6",
+      "values": {
+        "survey_no": "TRN-TH-66/9A",
+        "property_type": "commercial",
+        "area": "95.0000",
+        "location": "Main Road, Pandaravadai village, Papanasam taluk",
+        "district_id": "D-TH",
+        "office_id": "OFF-TH",
+        "boundary_details": "North: village main road; South: parcel 66/10; East: parcel 66/9B; West: 3 m service lane."
+      }
+    },
+    {
+      "key": "surveys",
+      "alias": "SUR-1",
+      "values": {
+        "property_id": "P1",
+        "officer_id": "S-CH",
+        "survey_no": "TRN-SUR-2026-001",
+        "survey_date": "2026-08-02",
+        "survey_area": "240.0000",
+        "boundary_details": "North: Lake View Street; South: parcel 214/3B; East: 3 m access lane; West: parcel 214/2.",
+        "survey_status": "completed"
+      }
+    },
+    {
+      "key": "surveys",
+      "alias": "SUR-2",
+      "values": {
+        "property_id": "P2",
+        "officer_id": "S-CH",
+        "survey_no": "TRN-SUR-2026-002",
+        "survey_date": "2026-08-03",
+        "survey_area": "180.0000",
+        "boundary_details": "North: market access road; South: parcel 87/6; East: parcel 87/5B; West: 4 m service lane.",
+        "survey_status": "completed"
+      }
+    },
+    {
+      "key": "surveys",
+      "alias": "SUR-3",
+      "values": {
+        "property_id": "P3",
+        "officer_id": "S-TH",
+        "survey_no": "TRN-SUR-2026-003",
+        "survey_date": "2026-08-04",
+        "survey_area": "8100.0000",
+        "boundary_details": "North: irrigation channel; South: parcel 142/2; East: bund adjoining parcel 143/1; West: village cart track.",
+        "survey_status": "completed"
+      }
+    },
+    {
+      "key": "surveys",
+      "alias": "SUR-4",
+      "values": {
+        "property_id": "P4",
+        "officer_id": "S-TH",
+        "survey_no": "TRN-SUR-2026-004",
+        "survey_date": "2026-08-05",
+        "survey_area": "2400.0000",
+        "boundary_details": "North: estate service road; South: plot I-18; East: 6 m internal road; West: plot I-16.",
+        "survey_status": "completed"
+      }
+    },
+    {
+      "key": "surveys",
+      "alias": "SUR-5",
+      "values": {
+        "property_id": "P5",
+        "officer_id": "S-CH",
+        "survey_no": "TRN-SUR-2026-005",
+        "survey_date": "2026-08-06",
+        "survey_area": "150.0000",
+        "boundary_details": "North: 6 m residential road; South: parcel 219/8; East: parcel 219/7B; West: parcel 219/6.",
+        "survey_status": "scheduled"
+      }
+    },
+    {
+      "key": "surveys",
+      "alias": "SUR-6",
+      "values": {
+        "property_id": "P6",
+        "officer_id": "S-TH",
+        "survey_no": "TRN-SUR-2026-006",
+        "survey_date": "2026-08-07",
+        "survey_area": "95.0000",
+        "boundary_details": "North: village main road; South: parcel 66/10; East: parcel 66/9B; West: 3 m service lane.",
+        "survey_status": "scheduled"
+      }
+    },
+    {
+      "key": "surveys",
+      "alias": "SUR-7",
+      "values": {
+        "property_id": "P1",
+        "officer_id": "S-CH",
+        "survey_no": "TRN-SUR-2026-007",
+        "survey_date": "2026-09-10",
+        "survey_area": "245.4000",
+        "boundary_details": "North: Lake View Street; South: parcel 214/3B; East: surveyed 3 m access lane; West: boundary stone BS-214-02 adjoining parcel 214/2.",
+        "survey_status": "completed"
+      }
+    },
+    {
+      "key": "surveys",
+      "alias": "SUR-8",
+      "values": {
+        "property_id": "P4",
+        "officer_id": "S-TH",
+        "survey_no": "TRN-SUR-2026-008",
+        "survey_date": "2026-07-28",
+        "survey_area": "2395.0000",
+        "boundary_details": "North: service road; South: plot I-18; East: provisional road edge; West: plot I-16.",
+        "survey_status": "completed"
+      }
+    },
+    {
+      "key": "valuations",
+      "alias": "VAL-1",
+      "values": {
+        "property_id": "P1",
+        "officer_id": "V-CH",
+        "valuation_date": "2026-08-02",
+        "market_value": "12600000.00",
+        "valuation_purpose": "Initial registration assessment",
+        "remarks": "Fictional training assessment; values are illustrative and not an official guideline rate."
+      }
+    },
+    {
+      "key": "valuations",
+      "alias": "VAL-2",
+      "values": {
+        "property_id": "P2",
+        "officer_id": "V-CH",
+        "valuation_date": "2026-08-03",
+        "market_value": "18000000.00",
+        "valuation_purpose": "Commercial registration assessment",
+        "remarks": "Fictional training assessment; values are illustrative and not an official guideline rate."
+      }
+    },
+    {
+      "key": "valuations",
+      "alias": "VAL-3",
+      "values": {
+        "property_id": "P3",
+        "officer_id": "V-TH",
+        "valuation_date": "2026-08-04",
+        "market_value": "4600000.00",
+        "valuation_purpose": "Agricultural registration assessment",
+        "remarks": "Fictional training assessment; values are illustrative and not an official guideline rate."
+      }
+    },
+    {
+      "key": "valuations",
+      "alias": "VAL-4",
+      "values": {
+        "property_id": "P4",
+        "officer_id": "V-TH",
+        "valuation_date": "2026-08-05",
+        "market_value": "10800000.00",
+        "valuation_purpose": "Industrial registration assessment",
+        "remarks": "Fictional training assessment; values are illustrative and not an official guideline rate."
+      }
+    },
+    {
+      "key": "valuations",
+      "alias": "VAL-5",
+      "values": {
+        "property_id": "P1",
+        "officer_id": "V-CH",
+        "valuation_date": "2026-09-01",
+        "market_value": "13400000.00",
+        "valuation_purpose": "Market reassessment for partial sale",
+        "remarks": "Fictional training assessment; values are illustrative and not an official guideline rate."
+      }
+    },
+    {
+      "key": "valuations",
+      "alias": "VAL-6",
+      "values": {
+        "property_id": "P2",
+        "officer_id": "V-CH",
+        "valuation_date": "2026-09-03",
+        "market_value": "19000000.00",
+        "valuation_purpose": "Market reassessment for co-owner transfer",
+        "remarks": "Fictional training assessment; values are illustrative and not an official guideline rate."
+      }
+    },
+    {
+      "key": "transactions",
+      "alias": "T1",
+      "values": {
+        "property_id": "P1",
+        "office_id": "OFF-CH",
+        "transaction_type": "registration",
+        "transaction_date": "2026-08-01",
+        "consideration": "12600000.00",
+        "remarks": "TRN-T1: registration training case. Fictional DBMS demonstration."
+      }
+    },
+    {
+      "key": "transaction_parties",
+      "alias": "T1-A-transferee",
+      "values": {
+        "transaction_id": "T1",
+        "owner_id": "O-A",
+        "role": "transferee",
+        "share": "1.00000000"
+      }
+    },
+    {
+      "key": "documents",
+      "alias": "DOC-T1",
+      "values": {
+        "document_no": "TRN-DEED-2026-001",
+        "property_id": "P1",
+        "transaction_id": "T1",
+        "document_type": "registration_deed",
+        "document_date": "2026-08-01"
+      }
+    },
+    {
+      "key": "documents",
+      "alias": "DOC-ID-1",
+      "values": {
+        "document_no": "TRN-IDPROOF-2026-001",
+        "property_id": "P1",
+        "transaction_id": "T1",
+        "document_type": "identity_proof",
+        "document_date": "2026-08-01"
+      }
+    },
+    {
+      "key": "applications",
+      "alias": "APP-T1",
+      "values": {
+        "applicant_owner_id": "O-A",
+        "property_id": "P1",
+        "service_type": "registration",
+        "submitted_date": "2026-08-01",
+        "transaction_id": "T1",
+        "notes": "TRN-APP-T1: registration request for TRN-CH-214/3A."
+      }
+    },
+    {
+      "key": "transactions",
+      "alias": "T2",
+      "values": {
+        "property_id": "P2",
+        "office_id": "OFF-CH",
+        "transaction_type": "registration",
+        "transaction_date": "2026-08-03",
+        "consideration": "18000000.00",
+        "remarks": "TRN-T2: Joint ownership registration, Priya 60% and Arjun 40%. Fictional DBMS demonstration."
+      }
+    },
+    {
+      "key": "transaction_parties",
+      "alias": "T2-D-transferee",
+      "values": {
+        "transaction_id": "T2",
+        "owner_id": "O-D",
+        "role": "transferee",
+        "share": "0.60000000"
+      }
+    },
+    {
+      "key": "transaction_parties",
+      "alias": "T2-E-transferee",
+      "values": {
+        "transaction_id": "T2",
+        "owner_id": "O-E",
+        "role": "transferee",
+        "share": "0.40000000"
+      }
+    },
+    {
+      "key": "documents",
+      "alias": "DOC-T2",
+      "values": {
+        "document_no": "TRN-DEED-2026-002",
+        "property_id": "P2",
+        "transaction_id": "T2",
+        "document_type": "registration_deed",
+        "document_date": "2026-08-03"
+      }
+    },
+    {
+      "key": "applications",
+      "alias": "APP-T2",
+      "values": {
+        "applicant_owner_id": "O-D",
+        "property_id": "P2",
+        "service_type": "registration",
+        "submitted_date": "2026-08-03",
+        "transaction_id": "T2",
+        "notes": "TRN-APP-T2: registration request for TRN-CH-87/5A."
+      }
+    },
+    {
+      "key": "transactions",
+      "alias": "T3",
+      "values": {
+        "property_id": "P3",
+        "office_id": "OFF-TH",
+        "transaction_type": "registration",
+        "transaction_date": "2026-08-04",
+        "consideration": "4600000.00",
+        "remarks": "TRN-T3: registration training case. Fictional DBMS demonstration."
+      }
+    },
+    {
+      "key": "transaction_parties",
+      "alias": "T3-F-transferee",
+      "values": {
+        "transaction_id": "T3",
+        "owner_id": "O-F",
+        "role": "transferee",
+        "share": "1.00000000"
+      }
+    },
+    {
+      "key": "documents",
+      "alias": "DOC-T3",
+      "values": {
+        "document_no": "TRN-DEED-2026-003",
+        "property_id": "P3",
+        "transaction_id": "T3",
+        "document_type": "registration_deed",
+        "document_date": "2026-08-04"
+      }
+    },
+    {
+      "key": "applications",
+      "alias": "APP-T3",
+      "values": {
+        "applicant_owner_id": "O-F",
+        "property_id": "P3",
+        "service_type": "registration",
+        "submitted_date": "2026-08-04",
+        "transaction_id": "T3",
+        "notes": "TRN-APP-T3: registration request for TRN-TH-142/1A."
+      }
+    },
+    {
+      "key": "transactions",
+      "alias": "T4",
+      "values": {
+        "property_id": "P4",
+        "office_id": "OFF-TH",
+        "transaction_type": "registration",
+        "transaction_date": "2026-08-05",
+        "consideration": "10800000.00",
+        "remarks": "TRN-T4: registration training case. Fictional DBMS demonstration."
+      }
+    },
+    {
+      "key": "transaction_parties",
+      "alias": "T4-E-transferee",
+      "values": {
+        "transaction_id": "T4",
+        "owner_id": "O-E",
+        "role": "transferee",
+        "share": "1.00000000"
+      }
+    },
+    {
+      "key": "documents",
+      "alias": "DOC-T4",
+      "values": {
+        "document_no": "TRN-DEED-2026-004",
+        "property_id": "P4",
+        "transaction_id": "T4",
+        "document_type": "registration_deed",
+        "document_date": "2026-08-05"
+      }
+    },
+    {
+      "key": "applications",
+      "alias": "APP-T4",
+      "values": {
+        "applicant_owner_id": "O-E",
+        "property_id": "P4",
+        "service_type": "registration",
+        "submitted_date": "2026-08-05",
+        "transaction_id": "T4",
+        "notes": "TRN-APP-T4: registration request for TRN-TH-305/17."
+      }
+    },
+    {
+      "key": "transactions",
+      "alias": "T5",
+      "values": {
+        "property_id": "P5",
+        "office_id": "OFF-CH",
+        "transaction_type": "registration",
+        "transaction_date": "2026-08-06",
+        "consideration": "7200000.00",
+        "remarks": "TRN-T5: Waiting for uploaded and verified registration deed. Fictional DBMS demonstration."
+      }
+    },
+    {
+      "key": "transaction_parties",
+      "alias": "T5-B-transferee",
+      "values": {
+        "transaction_id": "T5",
+        "owner_id": "O-B",
+        "role": "transferee",
+        "share": "1.00000000"
+      }
+    },
+    {
+      "key": "documents",
+      "alias": "DOC-T5",
+      "values": {
+        "document_no": "TRN-DEED-2026-005",
+        "property_id": "P5",
+        "transaction_id": "T5",
+        "document_type": "registration_deed",
+        "document_date": "2026-08-06"
+      }
+    },
+    {
+      "key": "applications",
+      "alias": "APP-T5",
+      "values": {
+        "applicant_owner_id": "O-B",
+        "property_id": "P5",
+        "service_type": "registration",
+        "submitted_date": "2026-08-06",
+        "transaction_id": "T5",
+        "notes": "TRN-APP-T5: registration request for TRN-CH-219/7A."
+      }
+    },
+    {
+      "key": "transactions",
+      "alias": "T6",
+      "values": {
+        "property_id": "P6",
+        "office_id": "OFF-TH",
+        "transaction_type": "registration",
+        "transaction_date": "2026-08-07",
+        "consideration": "3800000.00",
+        "remarks": "TRN-T6: Rejected training application with inconsistent supporting evidence. Fictional DBMS demonstration."
+      }
+    },
+    {
+      "key": "transaction_parties",
+      "alias": "T6-H-transferee",
+      "values": {
+        "transaction_id": "T6",
+        "owner_id": "O-H",
+        "role": "transferee",
+        "share": "1.00000000"
+      }
+    },
+    {
+      "key": "documents",
+      "alias": "DOC-T6",
+      "values": {
+        "document_no": "TRN-DEED-2026-006",
+        "property_id": "P6",
+        "transaction_id": "T6",
+        "document_type": "registration_deed",
+        "document_date": "2026-08-07"
+      }
+    },
+    {
+      "key": "applications",
+      "alias": "APP-T6",
+      "values": {
+        "applicant_owner_id": "O-H",
+        "property_id": "P6",
+        "service_type": "registration",
+        "submitted_date": "2026-08-07",
+        "transaction_id": "T6",
+        "notes": "TRN-APP-T6: registration request for TRN-TH-66/9A."
+      }
+    },
+    {
+      "key": "transactions",
+      "alias": "T7",
+      "values": {
+        "property_id": "P1",
+        "office_id": "OFF-CH",
+        "transaction_type": "sale",
+        "transaction_date": "2026-09-01",
+        "consideration": "3350000.00",
+        "remarks": "TRN-T7: Aarav sells a 25% undivided share to Meera. Fictional DBMS demonstration."
+      }
+    },
+    {
+      "key": "transaction_parties",
+      "alias": "T7-A-transferor",
+      "values": {
+        "transaction_id": "T7",
+        "owner_id": "O-A",
+        "role": "transferor",
+        "share": "0.25000000"
+      }
+    },
+    {
+      "key": "transaction_parties",
+      "alias": "T7-B-transferee",
+      "values": {
+        "transaction_id": "T7",
+        "owner_id": "O-B",
+        "role": "transferee",
+        "share": "0.25000000"
+      }
+    },
+    {
+      "key": "documents",
+      "alias": "DOC-T7",
+      "values": {
+        "document_no": "TRN-DEED-2026-007",
+        "property_id": "P1",
+        "transaction_id": "T7",
+        "document_type": "sale_deed",
+        "document_date": "2026-09-01"
+      }
+    },
+    {
+      "key": "applications",
+      "alias": "APP-T7",
+      "values": {
+        "applicant_owner_id": "O-A",
+        "property_id": "P1",
+        "service_type": "transfer",
+        "submitted_date": "2026-09-01",
+        "transaction_id": "T7",
+        "notes": "TRN-APP-T7: sale request for TRN-CH-214/3A."
+      }
+    },
+    {
+      "key": "transactions",
+      "alias": "T8",
+      "values": {
+        "property_id": "P1",
+        "office_id": "OFF-CH",
+        "transaction_type": "gift",
+        "transaction_date": "2026-09-08",
+        "consideration": "0.00",
+        "remarks": "TRN-T8: Aarav gifts a further 25% undivided share to Kavin. Fictional DBMS demonstration."
+      }
+    },
+    {
+      "key": "transaction_parties",
+      "alias": "T8-A-transferor",
+      "values": {
+        "transaction_id": "T8",
+        "owner_id": "O-A",
+        "role": "transferor",
+        "share": "0.25000000"
+      }
+    },
+    {
+      "key": "transaction_parties",
+      "alias": "T8-C-transferee",
+      "values": {
+        "transaction_id": "T8",
+        "owner_id": "O-C",
+        "role": "transferee",
+        "share": "0.25000000"
+      }
+    },
+    {
+      "key": "documents",
+      "alias": "DOC-T8",
+      "values": {
+        "document_no": "TRN-DEED-2026-008",
+        "property_id": "P1",
+        "transaction_id": "T8",
+        "document_type": "gift_deed",
+        "document_date": "2026-09-08"
+      }
+    },
+    {
+      "key": "applications",
+      "alias": "APP-T8",
+      "values": {
+        "applicant_owner_id": "O-A",
+        "property_id": "P1",
+        "service_type": "transfer",
+        "submitted_date": "2026-09-08",
+        "transaction_id": "T8",
+        "notes": "TRN-APP-T8: gift request for TRN-CH-214/3A."
+      }
+    },
+    {
+      "key": "transactions",
+      "alias": "T9",
+      "values": {
+        "property_id": "P2",
+        "office_id": "OFF-CH",
+        "transaction_type": "sale",
+        "transaction_date": "2026-09-03",
+        "consideration": "3800000.00",
+        "remarks": "TRN-T9: Priya sells 20% of the whole parcel to existing co-owner Arjun. Fictional DBMS demonstration."
+      }
+    },
+    {
+      "key": "transaction_parties",
+      "alias": "T9-D-transferor",
+      "values": {
+        "transaction_id": "T9",
+        "owner_id": "O-D",
+        "role": "transferor",
+        "share": "0.20000000"
+      }
+    },
+    {
+      "key": "transaction_parties",
+      "alias": "T9-E-transferee",
+      "values": {
+        "transaction_id": "T9",
+        "owner_id": "O-E",
+        "role": "transferee",
+        "share": "0.20000000"
+      }
+    },
+    {
+      "key": "documents",
+      "alias": "DOC-T9",
+      "values": {
+        "document_no": "TRN-DEED-2026-009",
+        "property_id": "P2",
+        "transaction_id": "T9",
+        "document_type": "sale_deed",
+        "document_date": "2026-09-03"
+      }
+    },
+    {
+      "key": "applications",
+      "alias": "APP-T9",
+      "values": {
+        "applicant_owner_id": "O-D",
+        "property_id": "P2",
+        "service_type": "transfer",
+        "submitted_date": "2026-09-03",
+        "transaction_id": "T9",
+        "notes": "TRN-APP-T9: sale request for TRN-CH-87/5A."
+      }
+    },
+    {
+      "key": "transactions",
+      "alias": "T10",
+      "values": {
+        "property_id": "P3",
+        "office_id": "OFF-TH",
+        "transaction_type": "inheritance",
+        "transaction_date": "2026-09-04",
+        "consideration": "0.00",
+        "remarks": "TRN-T10: Estate of Diya passes to two heirs, Rohan 60% and Ananya 40%. Fictional DBMS demonstration."
+      }
+    },
+    {
+      "key": "transaction_parties",
+      "alias": "T10-F-transferor",
+      "values": {
+        "transaction_id": "T10",
+        "owner_id": "O-F",
+        "role": "transferor",
+        "share": "1.00000000"
+      }
+    },
+    {
+      "key": "transaction_parties",
+      "alias": "T10-G-transferee",
+      "values": {
+        "transaction_id": "T10",
+        "owner_id": "O-G",
+        "role": "transferee",
+        "share": "0.60000000"
+      }
+    },
+    {
+      "key": "transaction_parties",
+      "alias": "T10-H-transferee",
+      "values": {
+        "transaction_id": "T10",
+        "owner_id": "O-H",
+        "role": "transferee",
+        "share": "0.40000000"
+      }
+    },
+    {
+      "key": "documents",
+      "alias": "DOC-T10",
+      "values": {
+        "document_no": "TRN-DEED-2026-010",
+        "property_id": "P3",
+        "transaction_id": "T10",
+        "document_type": "inheritance_deed",
+        "document_date": "2026-09-04"
+      }
+    },
+    {
+      "key": "applications",
+      "alias": "APP-T10",
+      "values": {
+        "applicant_owner_id": "O-G",
+        "property_id": "P3",
+        "service_type": "transfer",
+        "submitted_date": "2026-09-04",
+        "transaction_id": "T10",
+        "notes": "TRN-APP-T10: inheritance request for TRN-TH-142/1A."
+      }
+    },
+    {
+      "key": "transactions",
+      "alias": "T11",
+      "values": {
+        "property_id": "P4",
+        "office_id": "OFF-TH",
+        "transaction_type": "gift",
+        "transaction_date": "2026-09-05",
+        "consideration": "0.00",
+        "remarks": "TRN-T11: Arjun gifts the complete industrial property to Priya. Fictional DBMS demonstration."
+      }
+    },
+    {
+      "key": "transaction_parties",
+      "alias": "T11-E-transferor",
+      "values": {
+        "transaction_id": "T11",
+        "owner_id": "O-E",
+        "role": "transferor",
+        "share": "1.00000000"
+      }
+    },
+    {
+      "key": "transaction_parties",
+      "alias": "T11-D-transferee",
+      "values": {
+        "transaction_id": "T11",
+        "owner_id": "O-D",
+        "role": "transferee",
+        "share": "1.00000000"
+      }
+    },
+    {
+      "key": "documents",
+      "alias": "DOC-T11",
+      "values": {
+        "document_no": "TRN-DEED-2026-011",
+        "property_id": "P4",
+        "transaction_id": "T11",
+        "document_type": "gift_deed",
+        "document_date": "2026-09-05"
+      }
+    },
+    {
+      "key": "applications",
+      "alias": "APP-T11",
+      "values": {
+        "applicant_owner_id": "O-E",
+        "property_id": "P4",
+        "service_type": "transfer",
+        "submitted_date": "2026-09-05",
+        "transaction_id": "T11",
+        "notes": "TRN-APP-T11: gift request for TRN-TH-305/17."
+      }
+    },
+    {
+      "key": "documents",
+      "alias": "DOC-SUR-1",
+      "values": {
+        "document_no": "TRN-SURVEYREPORT-2026-001",
+        "property_id": "P1",
+        "transaction_id": "",
+        "document_type": "survey_report",
+        "document_date": "2026-09-10"
+      }
+    },
+    {
+      "key": "documents",
+      "alias": "DOC-CLAIM-4",
+      "values": {
+        "document_no": "TRN-MORTGAGE-2026-001",
+        "property_id": "P4",
+        "transaction_id": "",
+        "document_type": "other",
+        "document_date": "2026-09-10"
+      }
+    },
+    {
+      "key": "encumbrances",
+      "alias": "ENC-1",
+      "values": {
+        "property_id": "P4",
+        "document_id": "DOC-CLAIM-4",
+        "encumbrance_type": "mortgage",
+        "claimant_name": "Kaveri Cooperative Bank - Training",
+        "start_date": "2026-09-10",
+        "end_date": "",
+        "status": "active",
+        "details": "Fictional secured business loan of INR 2500000 against the industrial parcel; release evidence is outstanding."
+      }
+    },
+    {
+      "key": "encumbrances",
+      "alias": "ENC-2",
+      "values": {
+        "property_id": "P2",
+        "document_id": "DOC-T2",
+        "encumbrance_type": "lien",
+        "claimant_name": "Chennai Municipal Revenue Office - Training",
+        "start_date": "2026-07-15",
+        "end_date": "2026-08-20",
+        "status": "released",
+        "details": "Fictional historical municipal arrears lien of INR 18000, discharged on 20 August 2026."
+      }
+    },
+    {
+      "key": "encumbrances",
+      "alias": "ENC-3",
+      "values": {
+        "property_id": "P3",
+        "document_id": "",
+        "encumbrance_type": "dispute",
+        "claimant_name": "Selvam Perumal - Training Claimant",
+        "start_date": "2026-09-18",
+        "end_date": "",
+        "status": "active",
+        "details": "Fictional neighbour disputes the western cart-track boundary. Survey reconciliation and a supporting digital document are pending."
+      }
+    },
+    {
+      "key": "encumbrances",
+      "alias": "ENC-4",
+      "values": {
+        "property_id": "P1",
+        "document_id": "DOC-SUR-1",
+        "encumbrance_type": "other",
+        "claimant_name": "Local Access Association - Training",
+        "start_date": "2026-09-10",
+        "end_date": "",
+        "status": "active",
+        "details": "Fictional recorded pedestrian access easement along the eastern 3 m lane; included in certificate snapshots."
+      }
+    },
+    {
+      "key": "transactions",
+      "alias": "T12",
+      "values": {
+        "property_id": "P4",
+        "office_id": "OFF-TH",
+        "transaction_type": "sale",
+        "transaction_date": "2026-09-22",
+        "consideration": "2850000.00",
+        "remarks": "TRN-T12: Proposed 25% sale blocked by outstanding mortgage. Fictional DBMS demonstration."
+      }
+    },
+    {
+      "key": "transaction_parties",
+      "alias": "T12-D-transferor",
+      "values": {
+        "transaction_id": "T12",
+        "owner_id": "O-D",
+        "role": "transferor",
+        "share": "0.25000000"
+      }
+    },
+    {
+      "key": "transaction_parties",
+      "alias": "T12-B-transferee",
+      "values": {
+        "transaction_id": "T12",
+        "owner_id": "O-B",
+        "role": "transferee",
+        "share": "0.25000000"
+      }
+    },
+    {
+      "key": "documents",
+      "alias": "DOC-T12",
+      "values": {
+        "document_no": "TRN-DEED-2026-012",
+        "property_id": "P4",
+        "transaction_id": "T12",
+        "document_type": "sale_deed",
+        "document_date": "2026-09-22"
+      }
+    },
+    {
+      "key": "applications",
+      "alias": "APP-T12",
+      "values": {
+        "applicant_owner_id": "O-D",
+        "property_id": "P4",
+        "service_type": "transfer",
+        "submitted_date": "2026-09-22",
+        "transaction_id": "T12",
+        "notes": "TRN-APP-T12: sale request for TRN-TH-305/17."
+      }
+    },
+    {
+      "key": "tax_payments",
+      "alias": "TAX-1",
+      "values": {
+        "property_id": "P1",
+        "payer_owner_id": "O-A",
+        "tax_year": "2026",
+        "payment_date": "2026-09-15",
+        "amount": "6800.50",
+        "payment_status": "paid",
+        "receipt_no": "TRN-REC-001",
+        "payment_reference": "TRN-PAY-2026-001"
+      }
+    },
+    {
+      "key": "tax_payments",
+      "alias": "TAX-2",
+      "values": {
+        "property_id": "P1",
+        "payer_owner_id": "O-B",
+        "tax_year": "2026",
+        "payment_date": "2026-09-16",
+        "amount": "1200.00",
+        "payment_status": "pending",
+        "receipt_no": "TRN-REC-002",
+        "payment_reference": ""
+      }
+    },
+    {
+      "key": "tax_payments",
+      "alias": "TAX-3",
+      "values": {
+        "property_id": "P2",
+        "payer_owner_id": "O-D",
+        "tax_year": "2026",
+        "payment_date": "2026-09-15",
+        "amount": "32000.00",
+        "payment_status": "paid",
+        "receipt_no": "TRN-REC-003",
+        "payment_reference": "TRN-PAY-2026-003"
+      }
+    },
+    {
+      "key": "tax_payments",
+      "alias": "TAX-4",
+      "values": {
+        "property_id": "P3",
+        "payer_owner_id": "O-G",
+        "tax_year": "2026",
+        "payment_date": "2026-09-15",
+        "amount": "2100.00",
+        "payment_status": "paid",
+        "receipt_no": "TRN-REC-004",
+        "payment_reference": "TRN-PAY-2026-004"
+      }
+    },
+    {
+      "key": "tax_payments",
+      "alias": "TAX-5",
+      "values": {
+        "property_id": "P3",
+        "payer_owner_id": "O-H",
+        "tax_year": "2026",
+        "payment_date": "2026-09-16",
+        "amount": "1400.00",
+        "payment_status": "failed",
+        "receipt_no": "TRN-REC-005",
+        "payment_reference": "TRN-FAIL-2026-005"
+      }
+    },
+    {
+      "key": "tax_payments",
+      "alias": "TAX-6",
+      "values": {
+        "property_id": "P4",
+        "payer_owner_id": "O-D",
+        "tax_year": "2026",
+        "payment_date": "2026-09-15",
+        "amount": "48000.00",
+        "payment_status": "paid",
+        "receipt_no": "TRN-REC-006",
+        "payment_reference": "TRN-PAY-2026-006"
+      }
+    },
+    {
+      "key": "tax_payments",
+      "alias": "TAX-7",
+      "values": {
+        "property_id": "P1",
+        "payer_owner_id": "O-A",
+        "tax_year": "2025",
+        "payment_date": "2026-08-05",
+        "amount": "6200.00",
+        "payment_status": "paid",
+        "receipt_no": "TRN-REC-007",
+        "payment_reference": "TRN-PAY-ARREARS-007"
+      }
+    },
+    {
+      "key": "mutations",
+      "alias": "MUT-B1",
+      "values": {
+        "property_id": "P1",
+        "transaction_id": "",
+        "mutation_date": "2026-09-11",
+        "mutation_type": "boundary_update",
+        "description": "Record reconciliation after TRN-SUR-2026-007; measured area 245.4000 square metres and western boundary stone BS-214-02."
+      }
+    },
+    {
+      "key": "mutations",
+      "alias": "MUT-C2",
+      "values": {
+        "property_id": "P2",
+        "transaction_id": "",
+        "mutation_date": "2026-09-12",
+        "mutation_type": "correction",
+        "description": "Review requested to reconcile the spelling of the service-lane description against the recorded survey report."
+      }
+    },
+    {
+      "key": "mutations",
+      "alias": "MUT-C3",
+      "values": {
+        "property_id": "P3",
+        "transaction_id": "",
+        "mutation_date": "2026-09-12",
+        "mutation_type": "correction",
+        "description": "Requested correction lacks matching supporting survey evidence; retained as a rejected training case."
+      }
+    },
+    {
+      "key": "applications",
+      "alias": "APP-MUT-1",
+      "values": {
+        "applicant_owner_id": "O-A",
+        "property_id": "P1",
+        "service_type": "mutation",
+        "submitted_date": "2026-09-11",
+        "transaction_id": "",
+        "notes": "Reconcile parcel record with completed survey TRN-SUR-2026-007 and approved boundary-update mutation MUT-B1."
+      }
+    },
+    {
+      "key": "applications",
+      "alias": "APP-EC-1",
+      "values": {
+        "applicant_owner_id": "O-A",
+        "property_id": "P1",
+        "service_type": "encumbrance_certificate",
+        "submitted_date": "2026-09-09",
+        "transaction_id": "",
+        "notes": "Request a certificate covering the residential parcel through 9 September 2026."
+      }
+    },
+    {
+      "key": "certificates",
+      "alias": "EC-1",
+      "values": {
+        "certificate_no": "TRN-EC-2026-001",
+        "property_id": "P1",
+        "period_from": "2026-01-01",
+        "period_to": "2026-09-09",
+        "application_id": "APP-EC-1"
+      }
+    },
+    {
+      "key": "applications",
+      "alias": "APP-EC-4",
+      "values": {
+        "applicant_owner_id": "O-D",
+        "property_id": "P4",
+        "service_type": "encumbrance_certificate",
+        "submitted_date": "2026-09-30",
+        "transaction_id": "",
+        "notes": "Request recorded mortgage information for the industrial parcel through September 2026."
+      }
+    },
+    {
+      "key": "certificates",
+      "alias": "EC-4",
+      "values": {
+        "certificate_no": "TRN-EC-2026-002",
+        "property_id": "P4",
+        "period_from": "2026-01-01",
+        "period_to": "2026-09-30",
+        "application_id": "APP-EC-4"
+      }
+    },
+    {
+      "key": "certificates",
+      "alias": "EC-2",
+      "values": {
+        "certificate_no": "TRN-EC-2026-003",
+        "property_id": "P2",
+        "period_from": "2026-01-01",
+        "period_to": "2026-09-30",
+        "application_id": ""
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "alias": "T1",
+      "property": "P1",
+      "type": "registration",
+      "date": "2026-08-01",
+      "parties": [
+        {
+          "owner": "O-A",
+          "role": "transferee",
+          "share": "1.00000000"
+        }
+      ],
+      "expected_status": "approved",
+      "blocked": false
+    },
+    {
+      "alias": "T2",
+      "property": "P2",
+      "type": "registration",
+      "date": "2026-08-03",
+      "parties": [
+        {
+          "owner": "O-D",
+          "role": "transferee",
+          "share": "0.60000000"
+        },
+        {
+          "owner": "O-E",
+          "role": "transferee",
+          "share": "0.40000000"
+        }
+      ],
+      "expected_status": "approved",
+      "blocked": false
+    },
+    {
+      "alias": "T3",
+      "property": "P3",
+      "type": "registration",
+      "date": "2026-08-04",
+      "parties": [
+        {
+          "owner": "O-F",
+          "role": "transferee",
+          "share": "1.00000000"
+        }
+      ],
+      "expected_status": "approved",
+      "blocked": false
+    },
+    {
+      "alias": "T4",
+      "property": "P4",
+      "type": "registration",
+      "date": "2026-08-05",
+      "parties": [
+        {
+          "owner": "O-E",
+          "role": "transferee",
+          "share": "1.00000000"
+        }
+      ],
+      "expected_status": "approved",
+      "blocked": false
+    },
+    {
+      "alias": "T5",
+      "property": "P5",
+      "type": "registration",
+      "date": "2026-08-06",
+      "parties": [
+        {
+          "owner": "O-B",
+          "role": "transferee",
+          "share": "1.00000000"
+        }
+      ],
+      "expected_status": "pending",
+      "blocked": false
+    },
+    {
+      "alias": "T6",
+      "property": "P6",
+      "type": "registration",
+      "date": "2026-08-07",
+      "parties": [
+        {
+          "owner": "O-H",
+          "role": "transferee",
+          "share": "1.00000000"
+        }
+      ],
+      "expected_status": "rejected",
+      "blocked": false
+    },
+    {
+      "alias": "T7",
+      "property": "P1",
+      "type": "sale",
+      "date": "2026-09-01",
+      "parties": [
+        {
+          "owner": "O-A",
+          "role": "transferor",
+          "share": "0.25000000"
+        },
+        {
+          "owner": "O-B",
+          "role": "transferee",
+          "share": "0.25000000"
+        }
+      ],
+      "expected_status": "approved",
+      "blocked": false
+    },
+    {
+      "alias": "T8",
+      "property": "P1",
+      "type": "gift",
+      "date": "2026-09-08",
+      "parties": [
+        {
+          "owner": "O-A",
+          "role": "transferor",
+          "share": "0.25000000"
+        },
+        {
+          "owner": "O-C",
+          "role": "transferee",
+          "share": "0.25000000"
+        }
+      ],
+      "expected_status": "approved",
+      "blocked": false
+    },
+    {
+      "alias": "T9",
+      "property": "P2",
+      "type": "sale",
+      "date": "2026-09-03",
+      "parties": [
+        {
+          "owner": "O-D",
+          "role": "transferor",
+          "share": "0.20000000"
+        },
+        {
+          "owner": "O-E",
+          "role": "transferee",
+          "share": "0.20000000"
+        }
+      ],
+      "expected_status": "approved",
+      "blocked": false
+    },
+    {
+      "alias": "T10",
+      "property": "P3",
+      "type": "inheritance",
+      "date": "2026-09-04",
+      "parties": [
+        {
+          "owner": "O-F",
+          "role": "transferor",
+          "share": "1.00000000"
+        },
+        {
+          "owner": "O-G",
+          "role": "transferee",
+          "share": "0.60000000"
+        },
+        {
+          "owner": "O-H",
+          "role": "transferee",
+          "share": "0.40000000"
+        }
+      ],
+      "expected_status": "approved",
+      "blocked": false
+    },
+    {
+      "alias": "T11",
+      "property": "P4",
+      "type": "gift",
+      "date": "2026-09-05",
+      "parties": [
+        {
+          "owner": "O-E",
+          "role": "transferor",
+          "share": "1.00000000"
+        },
+        {
+          "owner": "O-D",
+          "role": "transferee",
+          "share": "1.00000000"
+        }
+      ],
+      "expected_status": "approved",
+      "blocked": false
+    },
+    {
+      "alias": "T12",
+      "property": "P4",
+      "type": "sale",
+      "date": "2026-09-22",
+      "parties": [
+        {
+          "owner": "O-D",
+          "role": "transferor",
+          "share": "0.25000000"
+        },
+        {
+          "owner": "O-B",
+          "role": "transferee",
+          "share": "0.25000000"
+        }
+      ],
+      "expected_status": "pending",
+      "blocked": true
+    }
+  ],
+  "accounts": [
+    {
+      "username": "trn.admin2",
+      "role": "administrator",
+      "owner_id": null,
+      "officer_id": null,
+      "optional": true
+    },
+    {
+      "username": "trn.aarav",
+      "role": "owner",
+      "owner_id": "O-A",
+      "officer_id": null
+    },
+    {
+      "username": "trn.suresh",
+      "role": "survey_officer",
+      "owner_id": null,
+      "officer_id": "S-CH"
+    },
+    {
+      "username": "trn.nandhini",
+      "role": "valuation_officer",
+      "owner_id": null,
+      "officer_id": "V-CH"
+    },
+    {
+      "username": "trn.lakshmi",
+      "role": "sub_registrar",
+      "owner_id": null,
+      "officer_id": "R-CH"
+    },
+    {
+      "username": "trn.bank",
+      "role": "bank_verifier",
+      "owner_id": null,
+      "officer_id": null
+    },
+    {
+      "username": "trn.ganesh",
+      "role": "auditor",
+      "owner_id": null,
+      "officer_id": "A-CH"
+    },
+    {
+      "username": "trn.public",
+      "role": "public_viewer",
+      "owner_id": null,
+      "officer_id": null
+    }
+  ],
+  "expected": {
+    "manual_record_counts": {
+      "properties": 6,
+      "owners": 8,
+      "districts": 2,
+      "offices": 2,
+      "officers": 8,
+      "transactions": 12,
+      "documents": 15,
+      "surveys": 8,
+      "valuations": 6,
+      "tax_payments": 7,
+      "encumbrances": 4,
+      "mutations": 3,
+      "transaction_parties": 20,
+      "applications": 15,
+      "certificates": 3
+    },
+    "ownership_history": [
+      {
+        "property": "P1",
+        "owner": "O-A",
+        "share": "1.00000000",
+        "valid_from": "2026-08-01",
+        "valid_to": "2026-09-01",
+        "source_transaction": "T1",
+        "end_transaction": "T7"
+      },
+      {
+        "property": "P2",
+        "owner": "O-D",
+        "share": "0.60000000",
+        "valid_from": "2026-08-03",
+        "valid_to": "2026-09-03",
+        "source_transaction": "T2",
+        "end_transaction": "T9"
+      },
+      {
+        "property": "P2",
+        "owner": "O-E",
+        "share": "0.40000000",
+        "valid_from": "2026-08-03",
+        "valid_to": "2026-09-03",
+        "source_transaction": "T2",
+        "end_transaction": "T9"
+      },
+      {
+        "property": "P3",
+        "owner": "O-F",
+        "share": "1.00000000",
+        "valid_from": "2026-08-04",
+        "valid_to": "2026-09-04",
+        "source_transaction": "T3",
+        "end_transaction": "T10"
+      },
+      {
+        "property": "P4",
+        "owner": "O-E",
+        "share": "1.00000000",
+        "valid_from": "2026-08-05",
+        "valid_to": "2026-09-05",
+        "source_transaction": "T4",
+        "end_transaction": "T11"
+      },
+      {
+        "property": "P1",
+        "owner": "O-A",
+        "share": "0.75000000",
+        "valid_from": "2026-09-01",
+        "valid_to": "2026-09-08",
+        "source_transaction": "T7",
+        "end_transaction": "T8"
+      },
+      {
+        "property": "P1",
+        "owner": "O-B",
+        "share": "0.25000000",
+        "valid_from": "2026-09-01",
+        "valid_to": null,
+        "source_transaction": "T7",
+        "end_transaction": null
+      },
+      {
+        "property": "P1",
+        "owner": "O-A",
+        "share": "0.50000000",
+        "valid_from": "2026-09-08",
+        "valid_to": null,
+        "source_transaction": "T8",
+        "end_transaction": null
+      },
+      {
+        "property": "P1",
+        "owner": "O-C",
+        "share": "0.25000000",
+        "valid_from": "2026-09-08",
+        "valid_to": null,
+        "source_transaction": "T8",
+        "end_transaction": null
+      },
+      {
+        "property": "P2",
+        "owner": "O-D",
+        "share": "0.40000000",
+        "valid_from": "2026-09-03",
+        "valid_to": null,
+        "source_transaction": "T9",
+        "end_transaction": null
+      },
+      {
+        "property": "P2",
+        "owner": "O-E",
+        "share": "0.60000000",
+        "valid_from": "2026-09-03",
+        "valid_to": null,
+        "source_transaction": "T9",
+        "end_transaction": null
+      },
+      {
+        "property": "P3",
+        "owner": "O-G",
+        "share": "0.60000000",
+        "valid_from": "2026-09-04",
+        "valid_to": null,
+        "source_transaction": "T10",
+        "end_transaction": null
+      },
+      {
+        "property": "P3",
+        "owner": "O-H",
+        "share": "0.40000000",
+        "valid_from": "2026-09-04",
+        "valid_to": null,
+        "source_transaction": "T10",
+        "end_transaction": null
+      },
+      {
+        "property": "P4",
+        "owner": "O-D",
+        "share": "1.00000000",
+        "valid_from": "2026-09-05",
+        "valid_to": null,
+        "source_transaction": "T11",
+        "end_transaction": null
+      }
+    ],
+    "generated_ownership_rows": 14,
+    "current_ownership_rows": 8,
+    "generated_transfer_mutations": 5,
+    "accounts_if_all_created": 8,
+    "transaction_statuses": {
+      "approved": 9,
+      "pending": 2,
+      "rejected": 1
+    },
+    "registered_properties": 4,
+    "pending_properties": 2,
+    "document_statuses": {
+      "verified": 13,
+      "pending": 1,
+      "rejected": 1
+    },
+    "application_statuses": {
+      "approved": 12,
+      "submitted": 1,
+      "under_review": 1,
+      "rejected": 1
+    },
+    "certificate_claims": {
+      "EC-1": [],
+      "EC-4": [
+        "ENC-1"
+      ],
+      "EC-2": [
+        "ENC-2"
+      ]
+    }
+  }
+}
