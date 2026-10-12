@@ -2257,7 +2257,7 @@ test("administrator creates public accounts while visitors cannot create privile
   );
   const adminCookie = await login("test-admin");
   const created = await request("/accounts", adminCookie, "POST", {
-    username: "test-public",
+    username: "test-public@landledger.local",
     password,
     role: "public_viewer",
     owner_id: ownerUser.owner_id,
@@ -2269,7 +2269,7 @@ test("administrator creates public accounts while visitors cannot create privile
   assert.equal(created.body.officer_id, null);
   assert.equal(created.body.password_hash, undefined);
   const wrongPortal = await request("/auth/login", undefined, "POST", {
-    username: "test-public",
+    username: "test-public@landledger.local",
     password,
     portal: "department",
   });
@@ -2288,7 +2288,7 @@ test("administrator creates public accounts while visitors cannot create privile
   assert.equal(
     (
       await request("/auth/login", undefined, "POST", {
-        username: "test-public",
+        username: "test-public@landledger.local",
         password,
         portal: "administrator",
       })
@@ -2296,7 +2296,7 @@ test("administrator creates public accounts while visitors cannot create privile
     400,
   );
   const signedIn = await request("/auth/login", undefined, "POST", {
-    username: "test-public",
+    username: "test-public@landledger.local",
     password,
     portal: "public",
     role: "administrator",

@@ -428,7 +428,7 @@ function Login({
           <p>
             {portal === "public"
               ? creating
-                ? "Sign up to explore registered properties. Your account can view public information only."
+                ? "Choose your own username or email to create a read-only public account. Department and demo names ending in @landledger.local cannot be used for signup."
                 : "Sign in to view registered properties, or create a free public account."
               : "Sign in to manage land records and department services."}
           </p>
@@ -463,7 +463,11 @@ function Login({
                 maxLength={creating ? 100 : 200}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Your registry username"
+                placeholder={
+                  creating
+                    ? "Choose a username, e.g. sai2211"
+                    : "Your existing account username"
+                }
               />
             </label>
             <PasswordField

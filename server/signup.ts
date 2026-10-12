@@ -21,7 +21,7 @@ export function validatePublicSignup(body: unknown) {
   // Keep the initial administrator and fictional department identities recoverable.
   demand(
     !username.endsWith("@landledger.local"),
-    "This username is reserved for the registration department.",
+    "Usernames ending in @landledger.local are reserved for department and demo accounts. To create a new public account, use your own username or email. If this account already exists, choose Sign in instead.",
   );
   demand(
     typeof input.password === "string" &&
