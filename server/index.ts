@@ -17,16 +17,10 @@ import {
   setSession,
   verifyPassword,
 } from "./auth.js";
-import {
-  resourceMap,
-  resources,
-  canRead,
-  canWrite,
-  type Resource,
-} from "./resources.js";
+import { resourceMap, resources, canRead, canWrite } from "./resources.js";
 import { accessible, propertyAccess, redact, scope } from "./access.js";
 import { demand, HttpError } from "./errors.js";
-import { validDate, uuidPattern, validateRecord } from "./validation.js";
+import { uuidPattern, validateRecord } from "./validation.js";
 import { publicPortal } from "./public-portal.js";
 import { validatePublicSignup } from "./signup.js";
 import {

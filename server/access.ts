@@ -3,7 +3,7 @@ import { demand } from "./errors.js";
 import type { Actor, Resource } from "./resources.js";
 import { canRead } from "./resources.js";
 
-export function ownerProperties(actor: Actor, placeholder: string) {
+export function ownerProperties(_actor: Actor, placeholder: string) {
   return `(SELECT property_id FROM ownerships WHERE owner_id=${placeholder} AND valid_to IS NULL
     UNION SELECT property_id FROM applications WHERE applicant_owner_id=${placeholder})`;
 }

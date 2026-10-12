@@ -1,5 +1,4 @@
 import {
-  useCallback,
   useEffect,
   useRef,
   useState,
@@ -27,18 +26,15 @@ import {
   Fingerprint,
   History,
   Home,
-  Landmark,
   Layers3,
   Leaf,
   Loader2,
   LockKeyhole,
   LogOut,
-  MapPin,
   MapPinned,
   Plus,
   Search,
   ShieldCheck,
-  Sprout,
   Upload,
   UserRound,
   UsersRound,
@@ -46,16 +42,13 @@ import {
   X,
   AlertCircle,
   RefreshCw,
-  Settings2,
   Ruler,
   Scale,
-  BriefcaseBusiness,
-  PanelRightClose,
   Network,
   type LucideIcon,
 } from "lucide-react";
 import type { Actor, Field, Resource } from "../server/resources";
-import { api, ApiError } from "./api";
+import { api } from "./api";
 import { csvCell } from "./csv";
 import PublicPortal from "./PublicPortal";
 const SchemaExplorer = lazy(() => import("./SchemaExplorer"));

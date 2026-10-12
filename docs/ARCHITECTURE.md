@@ -1,8 +1,8 @@
 # LandLedger: architecture and implementation report
 
-**Project:** Digital Land Registration and Property Management System  
-**Verified:** 10 October 2026  
-**Implementation checkpoint:** `a112d51` on [GitHub](https://github.com/Sai-2211/dbms_project/commit/a112d516554b495f007e865dbf7a48206d933882)
+**Project:** Digital Land Registration and Property Management System\
+**Updated:** 12 October 2026\
+**Implementation:** current repository, including the public portal and controlled training import
 
 LandLedger is a working course demonstration with a React interface, an Express backend, and a real CockroachDB database. Forms save persistent records, and the dashboard and record pages read those records back. The approved schema contains 18 tables: the 12 main entities plus six supporting tables. Home and the separate interactive ER diagram accompany the 12 main navigation tabs. The public-user update widens the two existing `users` CHECK constraints; the table and relationship model stays the same.
 
@@ -203,7 +203,7 @@ These checks provide broad repeatable coverage of representative inputs and secu
 
 The course prototype has no real government identity/deed verification, payment or lending integration, cadastral GIS, automated fraud classification, password-reset/MFA flow or legal certificate issuance. Account creation is available; password changes/account lifecycle management would need further application work. Audit records are append-only through the API but can be modified by a privileged database administrator. Sessions are signed and expire after eight hours; logout clears the browser cookie and does not provide individual stolen-token revocation. Rate-limit counters are held in one API process, not a shared distributed store. Reference dropdowns return up to 1,000 authorized records.
 
-Public deployment was not performed. The local root/insecure database is bound to loopback for demonstration. A real deployment requires HTTPS, verified database TLS, least-privilege SQL credentials, replacement of demo accounts, coordinated database/file backups and operational monitoring. Production cookie/configuration paths exist, but a public TLS deployment, multi-node failover and production-scale load testing were not demonstrated. Any future table/column/relationship changes still require the user's permission.
+The app is deployed on Render with CockroachDB Cloud, and its authorized training import and document download were checked. The local root/insecure database remains a loopback-only demonstration. Real departmental use still requires least-privilege credentials, coordinated backups and operational review; multi-node failover and production-scale load tests have not been demonstrated. Future schema changes require project-owner approval.
 
 ### Render deployment configuration
 
@@ -213,7 +213,7 @@ The root `render.yaml` defines a single Node Web Service. Render builds React wi
 
 On Render, configuration defaults to its `RENDER_EXTERNAL_URL`, `0.0.0.0` and its injected `PORT`. A custom `APP_ORIGIN` overrides the assigned origin. Production startup requires HTTPS and a database URL using `sslmode=verify-full`. Express trusts one Render ingress hop for per-client rate limiting; local operation continues to reject proxy headers as a source of client identity.
 
-CockroachDB Cloud remains an external database. A paid persistent disk mounted at `/var/data` holds private uploads under `/var/data/uploads`; SQL rows hold the document metadata. The explicit `db:bootstrap-demo` Shell command requires a private first-seed password and retains the protections against overwriting an existing registry. Normal production startup never seeds accounts automatically. See [RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md) for the exact settings, initialization steps and deployment limitations. No public deployment or cloud account provisioning was performed during repository preparation.
+CockroachDB Cloud remains an external database. A paid persistent disk mounted at `/var/data` holds private uploads under `/var/data/uploads`; SQL rows hold the document metadata. The explicit `db:bootstrap-demo` Shell command requires a private first-seed password and retains the protections against overwriting an existing registry. Normal production startup never seeds accounts automatically. See [RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md) for the exact settings, initialization steps and deployment limitations. The hosted training import was separately authorized and verified on 12 October 2026; normal startup does not automatically populate a registry.
 
 ## 12. Explanation for the professor
 

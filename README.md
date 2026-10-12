@@ -1,36 +1,31 @@
 # LandLedger
 
-A React web application for the **Digital Land Registration and Property Management System** DBMS project. Forms write to a real **CockroachDB** database; the dashboard and record views read from the same database.
+A **Digital Land Registration and Property Management System** built with React, Express and CockroachDB. Forms save related records to the database; dashboards, tables, ownership history and an interactive ER explorer display the stored data.
 
-## Included
+[Hosted application](https://dbms-project-dph6.onrender.com/) · [Architecture](docs/ARCHITECTURE.md) · [Database justification](docs/DATABASE_JUSTIFICATION.md)
 
-- Home dashboard: parcel counts, owners, pending transactions, recorded tax receipts, property mix, district distribution and audit activity.
-- Exactly **12 primary tabs**: Properties, Owners, Districts, Offices, Officers, Transactions, Documents, Surveys, Valuations, Tax Payments, Encumbrances and Mutations.
-- Search, status filters, pagination, record details, entry forms and current-page CSV export.
-- Initial registration, sale, inheritance and gift transactions with joint ownership shares and dated ownership history.
-- Deed uploads and verification; a sub-registrar approves transactions.
-- Surveys, boundary updates, valuation history, tax receipt recording and encumbrance claims.
-- Service applications, generated encumbrance-certificate snapshots, user accounts and an audit trail through the workspace menu.
-- Two sign-in areas: **Department / administrator** and **Public user**. Visitors can create read-only public accounts; administrator and staff accounts are created only by signed-in administrators.
-- Login and signup password fields have independent **Show / Hide** buttons and remain hidden by default.
-- Eight access roles: the seven existing department roles plus `public_viewer`, which can only search and view safe registered-property information.
-- Serializable transaction retries, foreign keys, validation, protected finalized records, password hashing and HTTP-only session cookies.
-- Separate interactive **ER diagram** tab: 18 tables and 37 foreign-key relationships read from the live database, with draggable tables, cardinalities, column/constraint inspection, related-table filtering and JSON export.
+![Hosted training registry](docs/images/dashboard.png)
 
-![LandLedger dashboard](docs/images/dashboard.png)
+## Features
 
-This is a student demonstration application. It does not perform real tax payments, mortgage approvals or legal registration. All seeded records and example documents are fictional. Amounts use INR; land areas use square metres.
+- Home dashboard and **12 primary tabs**: Properties, Owners, Districts, Offices, Officers, Transactions, Documents, Surveys, Valuations, Tax Payments, Encumbrances and Mutations.
+- Search, status filters, pagination, record details and department CSV export.
+- Registration, sale, gift and inheritance workflows with joint ownership, exact shares and dated ownership history.
+- Uploaded deeds, document verification and sub-registrar approval.
+- Survey/boundary history, valuations, taxes, claims, service applications and certificate snapshots.
+- Administrator account creation and public self-signup, with server-enforced roles and a limited public directory.
+- Administrator-only fictional dataset import, duplicate prevention and recovery of known sample PDF attachments.
+- A separate interactive **ER diagram** built from the live database: **18 tables and 37 foreign keys**, with cardinalities, draggable tables, constraint inspection, filtering and schema JSON export.
+
+This is a course demonstration. Records and sample attachments are fictional; the app does not perform real legal registration, tax payments or lending decisions. Money uses INR and areas use square metres.
 
 ## Stack
 
-- React + TypeScript + Vite
-- Node.js 22 + Express
-- CockroachDB 25.4.0, with the `pg` PostgreSQL-compatible driver
-- Local private file storage for documents; document metadata/checksums are in CockroachDB
+React 19, TypeScript and Vite on the frontend; Node.js 22 and Express 5 on the backend; CockroachDB 25.4.0 through the PostgreSQL-compatible `pg` driver. Documents have private file storage and SHA-256 metadata. The app uses serializable transactions, parameterized SQL, foreign keys, validation, salted password hashes and signed HTTP-only session cookies.
 
-## Run locally
+## Local setup
 
-Requirements: **Node.js 22.19+**, npm, and either Docker Compose or an installed CockroachDB binary. Node 24 is also suitable. The versioned Docker configuration provides the tested database version.
+Install Node.js **22.19+**, npm and Docker Compose. Node 24 is also supported by the current dependencies.
 
 ```sh
 git clone https://github.com/Sai-2211/dbms_project.git
@@ -38,160 +33,143 @@ cd dbms_project
 npm ci
 npm run setup
 docker compose up -d
+docker compose ps -a
 ```
 
-Wait for the database to become healthy and the `db-init` service to exit successfully:
+Wait for `db` to become healthy and `db-init` to exit successfully, then run:
 
 ```sh
-docker compose ps -a
 npm run db:migrate
 npm run db:seed
 npm run dev
 ```
 
-Open **http://127.0.0.1:5173**. The API runs on port 3001; CockroachDB SQL uses port 26257. Its development DB console is available at http://127.0.0.1:8080.
-
-`npm run setup` creates a private, ignored `.env` file with a random session secret. It preserves an existing `.env`. The default database URL is for a loopback-only, insecure **local demonstration** database. Database data persists in a Docker volume. Document files persist in the ignored `uploads/` directory.
+Open **http://127.0.0.1:5173**. Express runs on port 3001, CockroachDB SQL on 26257 and the local database console on 8080. Docker ports are bound to loopback. `npm run setup` creates an ignored `.env` with a random session secret and preserves an existing configuration. Database data persists in a Docker volume; local document files use the ignored `uploads/` directory.
 
 ### Without Docker
 
-Use an official CockroachDB binary, then keep this process running:
+Install an official CockroachDB binary and keep it running:
 
 ```sh
 cockroach start-single-node --insecure --listen-addr=127.0.0.1:26257 --http-addr=127.0.0.1:8080 --store=./work/cockroach-data
 ```
 
-In another terminal:
+In another terminal, create the local database and follow the migration/seed/dev steps above:
 
 ```sh
 cockroach sql --insecure --host=127.0.0.1:26257 --execute='CREATE DATABASE IF NOT EXISTS landledger;'
-npm run db:migrate
-npm run db:seed
-npm run dev
 ```
 
-### Demo sign-in
+### Local demo accounts
 
-All seven seeded accounts use **`LandLedger@2026`**, unless `DEMO_ADMIN_PASSWORD` was changed before the first seed.
+After `npm run db:seed`, these seven accounts use **`LandLedger@2026`**, unless `DEMO_ADMIN_PASSWORD` was changed before the first seed:
 
-| Username                     | Role                                                                       |
-| ---------------------------- | -------------------------------------------------------------------------- |
-| `admin@landledger.local`     | Administrator; all twelve modules                                          |
-| `owner@landledger.local`     | Owner portal; own parcels and applications                                 |
-| `registrar@landledger.local` | Sub-registrar for Chennai Central Registry                                 |
-| `surveyor@landledger.local`  | Survey officer                                                             |
-| `valuer@landledger.local`    | Valuation officer                                                          |
-| `bank@landledger.local`      | Read-only ownership/encumbrance verification; private owner details hidden |
-| `auditor@landledger.local`   | Read-only records and audit trail                                          |
+| Username                     | Role              |
+| ---------------------------- | ----------------- |
+| `admin@landledger.local`     | Administrator     |
+| `owner@landledger.local`     | Owner             |
+| `registrar@landledger.local` | Sub-registrar     |
+| `surveyor@landledger.local`  | Survey officer    |
+| `valuer@landledger.local`    | Valuation officer |
+| `bank@landledger.local`      | Bank verifier     |
+| `auditor@landledger.local`   | Auditor           |
 
-The seed creates 24 fictional properties, nine owners, four districts and examples across the primary modules. Running it again leaves existing demonstration data unchanged. It refuses a non-empty database containing unrelated records and is disabled when `NODE_ENV=production`.
+Choose **Department / administrator** for these accounts. The seed creates 24 fictional properties, nine owners and four districts. It refuses unrelated non-empty registries and is disabled in production. Running it again on its existing demo registry does not replace records or passwords. Local and hosted databases are separate; the hosted administrator uses its privately configured password.
 
-## Demonstrate the project
+## Accounts and permissions
 
-Start with [the step-by-step demo guide](docs/DEMO_GUIDE.md). It covers a new registration, a transfer, verification, joint ownership, rollback, role access and the ER explorer. The dashboard is populated from database queries, rather than hardcoded counts.
+Use **Department / administrator** for administrator, owner and staff accounts; use **Public user** for read-only directory accounts. Permissions always come from the database role, not the selected login button. Password fields have Show/Hide controls and are hidden initially.
 
-To populate the app yourself, use [the manual data-entry workbook](docs/MANUAL_DATA_ENTRY.md). It provides 119 plausible fictional records in dependency order, optional role accounts, upload/review instructions, expected ownership history and checks across all 18 tables and 37 foreign keys. Copy values into individual form fields and select related records from dropdowns. The workbook includes [a training PDF attachment](docs/Fictional-Training-Upload.pdf); ownership, audit entries and transfer mutations are generated by the app. Creating these files does not insert any records or change the schema.
+Administrators open their username menu → **User accounts** to list accounts and create additional administrator/public/owner/staff accounts. Owner and officer accounts require the matching profile. Account listing/creation is implemented; role editing, deactivation/reactivation and in-app password resets are not yet available.
 
-Read [the detailed architecture report](docs/ARCHITECTURE.md) for the frontend, backend, database connection and transfer workflow. [The verification report](docs/VERIFICATION_REPORT.md) contains all 81 passing test cases, security checks, browser evidence and practical limitations.
+Visitors can choose **Public user → Create account**. Signup creates only `public_viewer` accounts, validates confirmation and rejects role/profile overrides. **All usernames ending in `@landledger.local` are reserved for administrator-created or demo accounts**; those existing accounts can sign in normally. Use another username or your own email for public signup.
 
-For automatic population, sign in as an administrator → username menu → **Load training records**. The [controlled import](docs/TRAINING_IMPORT.md) loads the complete fictional registry, generates ownership/mutation history, validates expected blocked approvals and prevents duplicate imports. Existing accounts and passwords remain unchanged. Known sample PDF attachments remain downloadable after Render Free restarts; other uploads still need persistent storage.
+Public accounts see registered parcels' survey number, type, area, district/state and registration office/date/status. Precise locations, owner identities/contact details, documents, claims, finances, pending/rejected parcels, accounts, audits and schema are hidden; public bulk export is unavailable. [Public signup and privacy](docs/PUBLIC_SIGNUP.md) explains the policy and implementation.
 
-## Host on Render
+## Sample data and demonstrations
 
-### Render Free: after creating your Web Service
+Choose one dataset approach for the database you intend to use:
 
-1. Select Node, branch `main`, and leave Root Directory empty. Use build command `npm ci --include=dev && npm run build`, start command `npm run start:render`, and health check `/api/health`.
-2. Set `DATABASE_URL` to your private CockroachDB Cloud connection string for the intended database, with the actual SQL password and `sslmode=verify-full`. Set `SESSION_SECRET` to a random secret of at least 32 characters, `NODE_VERSION=22.x`, `NODE_ENV=production`, `HOST=0.0.0.0`, and `UPLOAD_DIR=uploads`. Render supplies its URL and port automatically. Do not copy your local `.env` wholesale or expose secrets through frontend variables.
-3. In the Render service's **Connect → Outbound** menu, copy every IPv4 CIDR range. In CockroachDB Cloud, open the cluster's **Networking → IP Allowlist → Add Network**, choose **New Network**, paste each range separately, enable SQL/client access if prompted, and apply. This is the network authorization needed for Render to reach CockroachDB. The connection string is still required independently.
-4. Add CockroachDB's **Current Network** entry too if you will run account setup from your Mac. After adding the required ranges, remove a broad `0.0.0.0/0` entry if present. Allow about 30 seconds for the change to take effect and retry the Render deployment if it previously failed to connect.
-5. Open your service's `/api/health` URL. `{"status":"connected","database":"CockroachDB"}` confirms database connectivity. It does not mean an administrator account exists yet.
-6. Follow [first administrator setup](docs/ACCOUNT_SETUP.md). In your local repository terminal, update the code with `git pull origin main`, install with `npm ci`, and run `npm run db:admin`. Privately enter the **same DATABASE_URL as Render**, then choose and confirm an application login password. Log in as `admin@landledger.local` using that password. To recover an existing administrator, use `npm run db:admin -- --reset-password` instead. This account is written directly to CockroachDB; no Render Shell is needed.
+- **Local seed:** `npm run db:seed` initializes a separate empty local demo registry with seven role accounts.
+- **Controlled import:** signed-in administrator → username menu → **Load training records**. It loads 119 specified records, creates 14 ownership-history and five transfer-mutation rows, and adds audit events. Existing accounts are preserved and repeated imports do not add duplicates. See [the import guide](docs/TRAINING_IMPORT.md).
+- **Manual practice:** [the copy-and-paste workbook](docs/MANUAL_DATA_ENTRY.md) provides dependency order, dropdown references, approval steps and expected results. Its [sample PDF](docs/Fictional-Training-Upload.pdf) is a training placeholder, not a legal deed or identity document.
 
-`DEMO_ADMIN_PASSWORD` does not create or update accounts merely by being set. The local administrator command creates only the administrator; it does not populate the registry with sample parcels or document references. Administrators create privileged accounts through **User accounts**. Visitors can use **Public user → Create account** to register read-only public accounts.
+Do not manually re-enter the same training identifiers after importing them. For a short demonstration, follow [DEMO_GUIDE.md](docs/DEMO_GUIDE.md).
 
-Render Free sleeps after inactivity and has no persistent disk or Shell access. With `UPLOAD_DIR=uploads`, uploaded files are temporary and can disappear after restarts, idle shutdowns or deployments even though SQL metadata remains. Persistent cloud document storage is a separate update, not implemented by the administrator setup command. CockroachDB records remain in the external database. See [the deployment guide](docs/RENDER_DEPLOYMENT.md) and [Render's Free limitations](https://render.com/docs/free).
+## Hosting and administrator setup
 
-### Optional paid deployment
+Deploy as **one Node Web Service**: Express serves the built React app and API from the same origin, with CockroachDB Cloud as the external database.
 
-The root `render.yaml` is a **paid Blueprint**, with a persistent document disk. Import it with **New → Blueprint** only if you want that paid configuration; it is not the setup for your existing Free service. See [the Render deployment guide](docs/RENDER_DEPLOYMENT.md) and review the displayed cost before creating resources.
+| Render setting | Value                                   |
+| -------------- | --------------------------------------- |
+| Build          | `npm ci --include=dev && npm run build` |
+| Start          | `npm run start:render`                  |
+| Health check   | `/api/health`                           |
+| Runtime        | Node 22                                 |
 
-Provide your private `DATABASE_URL` and a new private `DEMO_ADMIN_PASSWORD`. Render generates the session secret, and the app automatically uses the assigned HTTPS address. After deployment, run `npm run db:bootstrap-demo` in the Render Shell to initialize fictional records and accounts. The guide includes an alternative for an existing manually created Web Service. No cloud resources are created by committing these files.
+[RENDER_DEPLOYMENT.md](docs/RENDER_DEPLOYMENT.md) covers environment variables, outbound IP allowlisting, Free limitations and the optional paid Blueprint. The root `render.yaml` includes a paid persistent disk; use the manual Free-service instructions if you need a free deployment.
 
-## Schema approval
+For a fresh hosted administrator, run `npm run db:admin` locally and privately enter the **same database URL as Render** and a new application password. To recover an existing administrator, use `npm run db:admin -- --reset-password`. Sign in as `admin@landledger.local`. Setting `DEMO_ADMIN_PASSWORD` does not reset an existing login. See [ACCOUNT_SETUP.md](docs/ACCOUNT_SETUP.md).
 
-The supplied scan omitted entity attribute descriptions 4–7. The user approved reconstructing Offices, Officers, Transactions and Documents, adding foreign keys/validation, and adding six supporting tables. The approved design has **18 database tables** and **12 primary navigation tabs**. See [the retained approval proposal](docs/SCHEMA_APPROVAL.md) and [the ER diagram](docs/SCHEMA.md).
+Render Free document storage is temporary. The versioned training PDF can be recovered on authorized download after a restart, but other uploaded documents need persistent storage. CockroachDB records remain in the external database.
 
-`server/schema.sql` creates the approved tables without dropping existing tables. `npm run db:migrate` also runs the approved, repeatable public-role upgrade for existing databases. This changes only the two `users` role/profile CHECK constraints and preserves records and passwords. Further schema changes require user approval.
+## Configuration
 
-## Administrator and public user login
+| Variable              | Purpose                                                                        |
+| --------------------- | ------------------------------------------------------------------------------ |
+| `DATABASE_URL`        | Private CockroachDB connection URL; production requires `sslmode=verify-full`. |
+| `SESSION_SECRET`      | Random signing secret of at least 32 characters; server-side only.             |
+| `PORT`                | API port, default 3001; injected by Render.                                    |
+| `HOST`                | Default `127.0.0.1` locally and `0.0.0.0` on Render.                           |
+| `APP_ORIGIN`          | Exact allowed frontend origin; uses Render's assigned HTTPS URL there.         |
+| `UPLOAD_DIR`          | Private document directory, default `uploads`.                                 |
+| `DEMO_ADMIN_PASSWORD` | Password for first sample seed/bootstrap only.                                 |
+| `NODE_ENV`            | `development` locally; `production` for HTTPS deployment.                      |
 
-Choose **Department / administrator** for existing staff/owner accounts and **Public user** for read-only public accounts. The selected button does not grant permissions: the server reads the account role from CockroachDB on every request.
+Use [.env.example](.env.example) as a reference. Real `.env` files, credentials, uploads, dependencies and build output are ignored by Git. Share the repository, not a copy of your private local configuration. Do not put secrets in frontend `VITE_*` variables.
 
-Administrators use the top-right account menu → **User accounts → Add user account**, selecting **Public user · read-only**. These accounts can browse only registered properties, search safe fields, filter districts, open basic registration details. Location/address text, encumbrance indicators, owner identities/contact information, documents, financial records, pending/rejected properties, staff accounts, audits and the ER diagram are unavailable to them. Requests to editing endpoints are denied by the backend. Staff retain their existing permissions.
-
-The schema update adds `public_viewer` to the existing `users` role/profile checks. No table, column or foreign key was added; the ER model remains **18 tables and 37 relationships**. `npm run db:migrate` creates the initial schema and runs the repeatable upgrade for existing databases, preserving records and passwords. Render applies this automatically with `npm run start:render`. See [the implementation notes](docs/PUBLIC_USER_ACCESS.md).
-
-Visitors can also select **Public user → Create account**, enter a username and a password of 12–128 characters, and confirm the password. Signup opens the public portal automatically. The server fixes the role to `public_viewer`, rejects role/profile overrides, protects department usernames and limits signup attempts. Public responses and searches exclude locations and encumbrances; public bulk export is removed. This signup/privacy update makes **no schema changes**. See [the signup and privacy report](docs/PUBLIC_SIGNUP.md).
-
-## Checks
+## Verification
 
 ```sh
 npm test
 npm run test:integration
 npm run build
+npm audit --audit-level=high
 ```
 
-The integration tests require a reachable CockroachDB instance and a development SQL user allowed to create databases. Each run creates its own `landledger_test_*` databases and removes only those test databases afterward. The tests exercise all 37 foreign keys, full rollback, conflicting transfers, joint ownership, document checks, role access, status filters, SQL injection, escaped HTML, upload/download, certificates, surveys, live schema accuracy, Render proxy limits, private demo initialization, administrator creation/recovery, public-user privacy, login-area restrictions and repeatable role migration. The latest suites passed 25 unit and 54 integration tests. GitHub Actions repeats the checks on each push and pull request.
+The latest verified suites have **25 unit tests and 56 CockroachDB/API integration tests**. Integration tests create and remove only their own disposable `landledger_test_*` databases, using a development SQL user with database-creation permission. Use a local/test CockroachDB instance for these checks. Tests cover relationships, rollback, conflicting transfers, ownership shares, uploads, role/privacy controls, injection inputs, migration, administrator recovery and training import. GitHub Actions repeats unit, integration, build and dependency checks on pushes and pull requests. TypeScript also rejects unused imports and parameters.
 
-The application never substitutes SQLite, PostgreSQL, browser storage or mock data when CockroachDB is unavailable. The interface displays a connection or operation error.
+The [verification report](docs/VERIFICATION_REPORT.md) describes coverage and practical limits. The app displays an error when CockroachDB is unavailable; it never substitutes another database or browser storage.
 
-### Serve the built app
+To serve the built app locally:
 
 ```sh
 npm run build
 npm start
 ```
 
-Open **http://127.0.0.1:3001**. The API serves the built frontend. Development mode allows this loopback origin as well as the Vite origin. `npm start` requires the project's installed dependencies because the backend runs TypeScript through `tsx`.
+Open http://127.0.0.1:3001. The backend runs TypeScript through `tsx`, so installed dependencies are required.
 
-## Configuration
+## Repository guide
 
-| Variable              | Purpose                                                                                         |
-| --------------------- | ----------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`        | CockroachDB connection URL. Production requires `sslmode=verify-full`.                          |
-| `SESSION_SECRET`      | Random signing secret, at least 32 characters. Never put it in frontend code.                   |
-| `PORT`                | API port; default 3001.                                                                         |
-| `HOST`                | API bind host; default `127.0.0.1` locally, `0.0.0.0` on Render.                                |
-| `APP_ORIGIN`          | Exact frontend origin. Uses Render's assigned URL there; local default `http://127.0.0.1:5173`. |
-| `UPLOAD_DIR`          | Persistent private document directory; default `uploads`.                                       |
-| `DEMO_ADMIN_PASSWORD` | Sample-account password for first seed only. Render bootstrap requires a private value.         |
-| `NODE_ENV`            | Set to `production` only with HTTPS, secure database credentials, and real accounts.            |
+| Location                              | Purpose                                                                                            |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `src/`                                | React workspace, public portal, ER explorer, styles and API client                                 |
+| `server/`                             | API, authentication, validation, business workflows, SQL schema, migrations and setup/import tools |
+| `shared/`                             | Shared public-property and schema contracts                                                        |
+| `tests/`                              | Unit and isolated database/API regression tests                                                    |
+| `scripts/setup.mjs`                   | Safe local environment initialization                                                              |
+| `docs/`                               | Architecture, schema, database justification, setup, demo and privacy guides                       |
+| `docs/data/manual-entry-records.json` | Runtime input for the controlled training importer                                                 |
+| `docs/Fictional-Training-Upload.pdf`  | Runtime sample upload/recovery asset                                                               |
+| `.github/workflows/ci.yml`            | Automated checks                                                                                   |
+| `docker-compose.yml`                  | Persistent local CockroachDB                                                                       |
+| `render.yaml`                         | Optional paid Render deployment with private disk                                                  |
 
-Uploaded files are PDF/PNG/JPEG, up to 10 MB, with a UUID storage key and SHA-256 checksum. Downloads require an authorized session. Finalized documents cannot be replaced. Keep both database backups and document-directory backups together.
+The JSON dataset and sample PDF in `docs/` are **runtime assets**, not disposable reports.
 
-## Project structure
+## Schema and scope
 
-```text
-src/                  React interface and API client
-server/schema.sql     Approved CockroachDB tables, constraints and indexes
-server/index.ts       API routes, file handling and session authorization
-server/business.ts    Ownership approval, validation and audit operations
-server/resources.ts   Form metadata and module permissions
-server/db.ts          Database connection and serializable retry wrapper
-server/catalog.ts     Live column, key and relationship metadata for the ER tab
-src/SchemaExplorer.tsx Interactive ER diagram and schema inspector
-server/seed.ts        Fictional demonstration records
-server/bootstrap-demo.ts Explicit Render Shell demo initialization
-tests/                Unit and isolated database/API tests
-docs/                 ER diagram, approval record and professor/demo guides
-docker-compose.yml    Loopback-only persistent development CockroachDB
-render.yaml           Render Web Service and private persistent document disk
-```
+[SCHEMA.md](docs/SCHEMA.md) explains the 18-table/37-relationship model; [SCHEMA_APPROVAL.md](docs/SCHEMA_APPROVAL.md) retains the approved design decisions. `db:migrate` creates missing tables and applies the repeatable public-role constraint upgrade without replacing records or passwords. Further schema changes require project-owner approval.
 
-## Scope and deployment limits
-
-The single-node setup demonstrates relational integrity and atomic, serializable transactions. It **does not demonstrate node-failure resilience**; that needs a correctly configured multi-node deployment and a separate failover demonstration. See [the database justification](docs/DATABASE_JUSTIFICATION.md).
-
-The audit trail is append-only through the application API. A database administrator can still modify database rows; it is not a cryptographically immutable legal ledger. Bank verification is a read-only view, not a lending decision. A certificate captures the claims currently stored for its requested period, including released claims that overlap the period; it does not certify the completeness of external government records.
-
-Before public production use, configure TLS and least-privilege database credentials, replace demonstration accounts, establish backup/recovery and file retention, and review the application against the actual department's requirements. The public-user portal exposes only its explicit registered-property projection to read-only public accounts; private owner data and documents remain restricted.
+The single-node demonstration proves relational integrity and serializable workflows, not multi-node failover. The course app has no external government verification, real payment processing, GIS or MFA. Its audit API is append-only, but a privileged SQL administrator can modify rows. Coordinated database/file backups and an operational security review are needed for real departmental use.

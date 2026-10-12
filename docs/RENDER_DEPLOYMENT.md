@@ -23,19 +23,19 @@ The build checks TypeScript and builds React. The start command creates missing 
 
 ## 2. Check Environment variables
 
-| Variable         | Value                                                                                                   |
-| ---------------- | ------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`   | Complete private CockroachDB URL for `sai_2211`, with the actual SQL password and `sslmode=verify-full` |
-| `SESSION_SECRET` | A private random string of at least 32 characters                                                       |
-| `NODE_VERSION`   | `22.x`                                                                                                  |
-| `NODE_ENV`       | `production`                                                                                            |
-| `HOST`           | `0.0.0.0`                                                                                               |
-| `UPLOAD_DIR`     | `uploads`                                                                                               |
+| Variable         | Value                                                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`   | Complete private CockroachDB URL for your selected database, with the actual SQL password and `sslmode=verify-full` |
+| `SESSION_SECRET` | A private random string of at least 32 characters                                                                   |
+| `NODE_VERSION`   | `22.x`                                                                                                              |
+| `NODE_ENV`       | `production`                                                                                                        |
+| `HOST`           | `0.0.0.0`                                                                                                           |
+| `UPLOAD_DIR`     | `uploads`                                                                                                           |
 
-For the URL, select the SQL user and `sai_2211` database in CockroachDB's Connect dialog. Replace the password placeholder privately; URL-encode reserved characters in that password. The pattern is:
+For the URL, select the SQL user and your selected database in CockroachDB's Connect dialog. Replace the password placeholder privately; URL-encode reserved characters in that password. The pattern is:
 
 ```text
-postgresql://SQL_USER:URL_ENCODED_PASSWORD@CLUSTER_HOST:26257/sai_2211?sslmode=verify-full
+postgresql://SQL_USER:URL_ENCODED_PASSWORD@CLUSTER_HOST:26257/DATABASE_NAME?sslmode=verify-full
 ```
 
 Do not put the database password in GitHub, a `VITE_*` variable, screenshots or chat. Use a regenerated SQL password if the previous password was shared. Do not disable TLS verification. Node normally trusts the public certificate authority for CockroachDB Cloud Basic; a certificate file downloaded on your Mac is not automatically available on Render.
@@ -52,12 +52,12 @@ Paste the result privately into Render. Changing it signs existing users out.
 
 ## 3. Allow Render to reach CockroachDB
 
-This is the connection step discussed earlier. There is no special connector to install: the backend connects through `DATABASE_URL`; the network allowlist permits its traffic.
+This allows traffic from the Render service to the database. There is no special connector to install: the backend connects through `DATABASE_URL`; the network allowlist permits its traffic.
 
 1. In Render, open **your Web Service**.
 2. Click **Connect** at the top right, then choose **Outbound**.
 3. Copy **every displayed CIDR range**, including the `/number` suffix. These are outbound network ranges, not your website URL or your home IP.
-4. In CockroachDB Cloud, open your `moon-lemur` cluster, then **Networking → IP Allowlist**.
+4. In CockroachDB Cloud, open your CockroachDB cluster, then **Networking → IP Allowlist**.
 5. Choose **Add Network → New Network**. Give the entry a label such as `Render outbound 1`, paste one CIDR, and select **SQL client access**. Apply/save it.
 6. Repeat for the other displayed Render ranges. Do not replace your Mac's entry with Render's entry: both can coexist.
 7. Add **Current Network** separately so your Mac can run administrator setup against the same cloud database.
@@ -120,7 +120,7 @@ Public users can search registered properties, filter districts, open basic regi
 - Free workspaces have a limited monthly allocation of instance hours. Check current allowances in Render rather than assuming unlimited uptime.
 - Free services have no persistent disk and no Shell access.
 - `UPLOAD_DIR=uploads` uses temporary storage. Uploaded document bytes can disappear on restart, idle shutdown or redeployment. Their SQL metadata and other records remain in CockroachDB.
-- Persistent document uploads need a separate object-storage integration or a paid persistent disk. That integration is not part of this update. Do not assume that an uploaded deed is permanently stored on Free.
+- Persistent document uploads need object storage or a paid persistent disk. Known versioned training PDFs can be recovered by the app after temporary-file loss; this does not provide persistence for other uploaded deeds.
 
 See [Render's current Free limitations](https://render.com/docs/free). CockroachDB's quota and billing are separate from Render's; monitor the cloud database plan as well.
 
@@ -129,7 +129,7 @@ See [Render's current Free limitations](https://render.com/docs/free). Cockroach
 | Symptom                                      | Check                                                                            |
 | -------------------------------------------- | -------------------------------------------------------------------------------- |
 | Database timeout                             | Cluster, hostname/port and all Render outbound CIDRs in the SQL allowlist        |
-| SQL authentication failure                   | SQL user, password URL encoding, selected `sai_2211` database                    |
+| SQL authentication failure                   | SQL user, password URL encoding, selected your selected database        |
 | Password placeholder/TLS error               | Full private URL and `sslmode=verify-full`                                       |
 | No open port / health fails                  | Host `0.0.0.0`, Render-injected port, successful migration logs                  |
 | Login says wrong credentials                 | Initialize/reset administrator against the exact database URL used by Render     |

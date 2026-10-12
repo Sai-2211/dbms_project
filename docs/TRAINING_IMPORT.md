@@ -47,4 +47,8 @@ This recovery works only for the known fictional sample. Other uploaded document
 
 ## Verification
 
-The integration suite uses a disposable local CockroachDB database. It tests role/CSRF/custom-payload rejection, identifier-conflict refusal without partial data/files, reuse of existing districts, preservation of existing admin passwords and unrelated properties, all imported workflow states, ownership history, document downloads, sample recovery after deleting an isolated test file, certificate snapshots, audit actor and repeated-import idempotence. See the latest training-import evidence files and [verification report](VERIFICATION_REPORT.md).
+The integration suite uses a disposable local CockroachDB database. It tests role/CSRF/custom-payload rejection, identifier-conflict refusal without partial data/files, reuse of existing districts, preservation of existing admin passwords and unrelated properties, all imported workflow states, ownership history, document downloads, sample recovery after deleting an isolated test file, certificate snapshots, audit actor and repeated-import idempotence. See the [verification report](VERIFICATION_REPORT.md) and its current summary.
+
+## Hosted dataset checkpoint
+
+On 12 October 2026, this import successfully created 138 registry rows plus audit events in the hosted application. Both districts were new; existing user accounts were preserved. The interface confirmed six parcels, eight owners, two intentionally Pending transactions, the expected ownership history and an authorized sample PDF download. This is a dated checkpoint, not a promise that later user edits leave those counts unchanged.

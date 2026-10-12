@@ -4,7 +4,7 @@ Prepared 12 October 2026 against the current app schema and form fields. All peo
 
 ## Before you start
 
-- I can insert records when you authorize it. This request creates files only: **no local or hosted database records have been added or changed**.
+- I can insert records when you authorize it. This workbook supplies copy-and-paste values only; it does not execute database operations. Use the controlled import if you want automatic entry.
 - Use your existing administrator on the app you want to populate. Localhost and Render may use different databases; enter this set in one environment at a time.
 - Enter one form at a time. Copy the value after the colon into its matching field; select dropdowns by their readable names. You cannot paste a whole record block into a single field. Dates use YYYY-MM-DD; your browser may display another date format. Amounts have no commas or currency symbols; areas are square metres.
 - Aliases such as P1, T1, O-A and R-CH exist only in this workbook. The app generates UUIDs; never paste these aliases into an ID field. References point to records you have already saved.

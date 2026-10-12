@@ -1,6 +1,6 @@
 # Public signup and limited property visibility
 
-Implemented 12 October 2026 after the user explicitly approved public self-registration, retained administrator-only creation of administrator/staff accounts, and selected a limited public directory.
+Public self-registration creates read-only directory accounts. Administrator/staff account creation remains restricted to signed-in administrators.
 
 ## Visitor signup
 
@@ -43,18 +43,14 @@ The signup endpoint has a separate limit of 20 attempts per 15 minutes per IP; r
 
 No database schema change was made for signup or the tighter directory. Both use the previously approved `users` and `audit_events` tables and `public_viewer` role. The model remains **18 tables and 37 foreign keys**. No new environment variables, mail service or storage service are required.
 
-## Verification
+## Schema and verification
 
-**79 automated tests passed: 25 unit and 54 real CockroachDB/API integration cases.** The production build passed and the installed dependency audit reported zero known vulnerabilities at check time.
+The earlier public-user feature changed only the two existing users checks: `users_role_allowed` includes `public_viewer`, and `users_role_profile` requires null owner/officer links for that role. `server/upgrade-public-role.ts` validates replacements before removing legacy checks. Repeated migration preserves rows/passwords and all 37 foreign keys. Signup itself requires no further schema changes.
 
-Added coverage verifies normalized usernames and exact Unicode passwords; bounds/confirmation; malformed/prototype/privileged payload rejection; reserved department usernames; salted hashes; secret-free audits; automatic authenticated public sessions; duplicate conflicts; fixed role/profile values; denied private-data/schema/account access; administrator-created additional admins; denied anonymous/public/owner/bank privileged creation; CSRF/origin controls; and independent signup throttling. Existing registration, concurrency, rollback, relationship and security checks still pass. Directory assertions now require exactly the allowed fields, reject hidden location/claim filters, verify hidden-location search returns no results, and prove claim changes cannot change public details.
-
-Browser checks verified the visible signup link, confirmed-password field, no role selector, correct field bounds, public login and limited property details. The public directory has no export button and no fixture address text. Desktop and mobile layouts stayed within their viewport widths. Account creation/session behavior was exercised by isolated API tests; no real cloud visitor account was created during browser testing.
-
-Evidence: `docs/evidence/signup-unit-tests.tap`, `signup-integration-tests.tap`, `signup-build.txt`, `signup-dependency-audit.json` and `signup-browser-check.json`. These are representative regression checks, not exhaustive fuzzing or an independent security certification. Email verification, password-reset emails and CAPTCHA were not introduced.
+The current [verification report](VERIFICATION_REPORT.md) covers 25 unit and 56 CockroachDB/API tests, including signup bounds, normalized usernames, Unicode passwords, fixed roles, secret-free audits, duplicate conflicts, denied private/account/schema access, CSRF/origin checks and independent signup throttling. UI checks confirmed the signup link, confirmation field, no role selector and a limited directory without location/claim/export controls. These are representative checks; email verification, password-reset emails and CAPTCHA are not implemented.
 
 ## Render and local demo
 
 Render's existing deployment settings remain valid. Push the update to `main`, then let auto-deploy complete or use **Manual Deploy → Deploy latest commit**. Refresh the hosted page and choose **Public user → Create account**. The cloud database continues to store accounts and records; no cloud credentials need to be pasted into the frontend.
 
-Localhost uses the separate local CockroachDB populated by `npm run db:seed`, which creates fictional parcels, owners, staff and role accounts. The currently available local demo is `http://127.0.0.1:3006/`; choose **Department / administrator**, username `admin@landledger.local`, password `LandLedger@2026`. This published demonstration password is for the local dataset; your Render administrator uses the private password chosen through `db:admin`. For a normal fresh local launch, follow the README's setup and `npm run dev` instructions.
+Localhost uses the separate local CockroachDB populated by `npm run db:seed`, which creates fictional parcels, owners, staff and role accounts. After following the README local setup, open `http://127.0.0.1:5173/` and choose **Department / administrator**, username `admin@landledger.local`, password `LandLedger@2026`. This published demonstration password is for the local dataset; your Render administrator uses the private password chosen through `db:admin`. For a normal fresh local launch, follow the README's setup and `npm run dev` instructions.

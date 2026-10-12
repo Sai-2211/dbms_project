@@ -42,4 +42,4 @@ Approval requested: permit the reconstructed four entities, foreign-key/constrai
 
 ## Public-user role follow-up — 12 October 2026
 
-The user authorized implementation with “just explain the changes, once it is done” and then requested continuation of the different login types. The approved change adds `public_viewer` to the existing `users` role/profile checks, requiring null owner/officer links. No new tables, columns or foreign keys were introduced. The upgrade preserves rows and the 18-table/37-relationship model; public-data restrictions are enforced through explicit backend projections. See [PUBLIC_USER_ACCESS.md](PUBLIC_USER_ACCESS.md).
+The user authorized implementation with “just explain the changes, once it is done” and then requested continuation of the different login types. The approved change adds `public_viewer` to the existing `users` role/profile checks, requiring null owner/officer links. No new tables, columns or foreign keys were introduced. The upgrade preserves rows and the 18-table/37-relationship model; public-data restrictions are enforced through explicit backend projections. See [PUBLIC_SIGNUP.md](PUBLIC_SIGNUP.md).
