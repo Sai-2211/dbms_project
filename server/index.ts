@@ -30,6 +30,11 @@ import { validDate, uuidPattern, validateRecord } from "./validation.js";
 import { publicPortal } from "./public-portal.js";
 import { validatePublicSignup } from "./signup.js";
 import {
+  importTrainingDataset,
+  trainingDatasetId,
+  recoverTrainingAttachment,
+} from "./training-import.js";
+import {
   approveTransfer,
   audit,
   certificateSnapshot,
@@ -816,7 +821,31 @@ app.get("/api/documents/:id/file", async (req, res) => {
   res.setHeader("Content-Type", document.media_type);
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.attachment(document.original_filename || "document");
-  res.send(await readFile(path.join(config.uploads, document.file_key)));
+  let bytes: Buffer;
+  try {
+    bytes = await readFile(path.join(config.uploads, document.file_key));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    const sample = await recoverTrainingAttachment(document);
+    if (!sample) throw error;
+    bytes = sample;
+  }
+  res.send(bytes);
+});
+
+app.post("/api/training-import", async (req, res) => {
+  demand(
+    req.actor.role === "administrator",
+    "Administrator access is required.",
+    403,
+  );
+  demand(
+    req.body?.dataset === trainingDatasetId &&
+      Object.keys(req.body).length === 1,
+    "Select the supplied training dataset. Custom records are not accepted.",
+  );
+  const report = await importTrainingDataset(req.actor, config.uploads);
+  res.status(report.status === "imported" ? 201 : 200).json(report);
 });
 
 app.get("/api/accounts", async (req, res) => {

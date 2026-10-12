@@ -3,7 +3,7 @@ import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
 import pg from "pg";
 import { randomUUID } from "node:crypto";
-import { readFile, mkdtemp, rm } from "node:fs/promises";
+import { readFile, mkdtemp, rm, readdir, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
@@ -2842,6 +2842,242 @@ test("public signup throttles repeated attempts independently of sign-in", async
     }
     deploymentChildren.delete(server);
   }
+});
+
+test("training import requires an administrator and rejects custom payloads", async () => {
+  const body = { dataset: "tn-manual-entry-v1" };
+  assert.equal(
+    (await request("/training-import", undefined, "POST", body)).status,
+    401,
+  );
+  for (const username of [
+    "test-owner",
+    "test-bank",
+    "test-survey_officer",
+    "test-valuation_officer",
+    "test-sub_registrar",
+    "test-auditor",
+    "test-public@landledger.local",
+  ]) {
+    assert.equal(
+      (await request("/training-import", await login(username), "POST", body))
+        .status,
+      403,
+    );
+  }
+  const cookie = await login("test-admin");
+  assert.equal(
+    (
+      await request("/training-import", cookie, "POST", {
+        ...body,
+        records: [],
+        role: "administrator",
+      })
+    ).status,
+    400,
+  );
+  const csrf = await fetch("http://127.0.0.1:3101/api/training-import", {
+    method: "POST",
+    headers: { Cookie: cookie, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  assert.equal(csrf.status, 403);
+  assert.equal(
+    Number(
+      (
+        await pool.query(
+          "SELECT count(*) AS count FROM offices WHERE office_code LIKE 'TRN-%'",
+        )
+      ).rows[0].count,
+    ),
+    0,
+  );
+});
+
+test("training import preserves unrelated records, verifies all workflows and files, refuses collisions and is idempotent", async () => {
+  const cookie = await login("test-admin");
+  const body = { dataset: "tn-manual-entry-v1" };
+  const conflict = await transaction((client) =>
+    insert(client, "owners", {
+      owner_name: "Existing unrelated training identifier",
+      identification_no: "TRAIN-TN-ID-001",
+      address: "Existing record must not be overwritten",
+    }),
+  );
+  const fileCount = (await readdir(uploadDir)).length;
+  assert.equal(
+    (await request("/training-import", cookie, "POST", body)).status,
+    409,
+  );
+  assert.equal(
+    Number(
+      (
+        await pool.query(
+          "SELECT count(*) AS count FROM offices WHERE office_code LIKE 'TRN-%'",
+        )
+      ).rows[0].count,
+    ),
+    0,
+  );
+  assert.equal((await readdir(uploadDir)).length, fileCount);
+  assert.equal(
+    (await pool.query("SELECT address FROM owners WHERE id=$1", [conflict.id]))
+      .rows[0].address,
+    conflict.address,
+  );
+  await pool.query("DELETE FROM owners WHERE id=$1", [conflict.id]); // Disposable isolated test row only.
+  await pool.query(
+    "INSERT INTO districts(district_name,state_name) VALUES($1,$2)",
+    ["Chennai", "Tamil Nadu"],
+  );
+  const before = Number(
+    (await pool.query("SELECT count(*) AS count FROM properties")).rows[0]
+      .count,
+  );
+  const existingPassword = (
+    await pool.query("SELECT password_hash FROM users WHERE id=$1", [actor.id])
+  ).rows[0].password_hash;
+  const result = await request("/training-import", cookie, "POST", body);
+  assert.equal(result.status, 201, JSON.stringify(result.body));
+  assert.equal(result.body.status, "imported");
+  assert.equal(result.body.reusedDistricts, 1);
+  assert.equal(result.body.created.properties, 6);
+  assert.equal(result.body.created.mutations, 8);
+  assert.equal(result.body.historicalOwnershipRows, 14);
+  assert.equal(result.body.currentOwnershipRows, 8);
+  assert.equal(result.body.expectedApprovalFailures, 2);
+  assert.equal(result.body.accountsCreated, 0);
+  assert.equal(
+    (
+      await pool.query("SELECT password_hash FROM users WHERE id=$1", [
+        actor.id,
+      ])
+    ).rows[0].password_hash,
+    existingPassword,
+  );
+  assert.equal(
+    Number(
+      (await pool.query("SELECT count(*) AS count FROM properties")).rows[0]
+        .count,
+    ),
+    before + 6,
+  );
+  const properties = (
+    await pool.query(
+      "SELECT * FROM properties WHERE survey_no LIKE 'TRN-%' ORDER BY survey_no",
+    )
+  ).rows;
+  assert.equal(
+    properties.filter((p) => p.registration_status === "registered").length,
+    4,
+  );
+  assert.equal(
+    properties.find((p) => p.survey_no === "TRN-CH-214/3A").area,
+    "245.4000",
+  );
+  assert.equal(
+    properties.find((p) => p.survey_no === "TRN-TH-305/17").area,
+    "2400.0000",
+  );
+  const states = (
+    await pool.query(
+      "SELECT status,count(*) AS count FROM transactions WHERE remarks LIKE 'TRN-T%' GROUP BY status",
+    )
+  ).rows;
+  assert.deepEqual(
+    Object.fromEntries(states.map((r) => [r.status, Number(r.count)])),
+    { approved: 9, pending: 2, rejected: 1 },
+  );
+  const documents = (
+    await pool.query("SELECT * FROM documents WHERE document_no LIKE 'TRN-%'")
+  ).rows;
+  assert.equal(documents.length, 15);
+  assert.equal(
+    documents.filter((d) => d.verification_status === "verified").length,
+    13,
+  );
+  for (const doc of documents.filter(
+    (d) => d.verification_status === "verified",
+  )) {
+    assert(
+      (await readFile(path.join(uploadDir, doc.file_key)))
+        .subarray(0, 5)
+        .equals(Buffer.from("%PDF-")),
+    );
+    assert(doc.verifying_officer_id);
+  }
+  assert.equal((await readdir(uploadDir)).length, fileCount + 13);
+  const response = await fetch(
+    `http://127.0.0.1:3101/api/documents/${documents.find((d) => d.verification_status === "verified").id}/file`,
+    { headers: { Cookie: cookie } },
+  );
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "application/pdf");
+  const sample = documents.find((d) => d.verification_status === "verified");
+  const storedSample = await readFile(path.join(uploadDir, sample.file_key));
+  await unlink(path.join(uploadDir, sample.file_key));
+  await pool.query("UPDATE documents SET sha256=$1 WHERE id=$2", [
+    "0".repeat(64),
+    sample.id,
+  ]);
+  assert.equal(
+    (
+      await fetch(`http://127.0.0.1:3101/api/documents/${sample.id}/file`, {
+        headers: { Cookie: cookie },
+      })
+    ).status,
+    404,
+  );
+  await pool.query("UPDATE documents SET sha256=$1 WHERE id=$2", [
+    sample.sha256,
+    sample.id,
+  ]);
+  const recovered = await fetch(
+    `http://127.0.0.1:3101/api/documents/${sample.id}/file`,
+    { headers: { Cookie: cookie } },
+  );
+  assert.equal(recovered.status, 200);
+  assert.deepEqual(Buffer.from(await recovered.arrayBuffer()), storedSample);
+  assert.equal(
+    (
+      await fetch(`http://127.0.0.1:3101/api/documents/${sample.id}/file`, {
+        headers: { Cookie: await login("test-bank") },
+      })
+    ).status,
+    403,
+  );
+  const certificates = (
+    await pool.query(
+      "SELECT certificate_no,snapshot_summary FROM certificates WHERE certificate_no LIKE 'TRN-%' ORDER BY certificate_no",
+    )
+  ).rows;
+  assert.deepEqual(
+    certificates.map((c) => c.snapshot_summary.claims.length),
+    [0, 1, 1],
+  );
+  assert.equal(
+    certificates[1].snapshot_summary.claims[0].encumbrance_type,
+    "mortgage",
+  );
+  assert.equal(certificates[2].snapshot_summary.claims[0].status, "released");
+  const repeat = await request("/training-import", cookie, "POST", body);
+  assert.equal(repeat.status, 200);
+  assert.equal(repeat.body.status, "already_imported");
+  assert.equal(
+    Number(
+      (await pool.query("SELECT count(*) AS count FROM properties")).rows[0]
+        .count,
+    ),
+    before + 6,
+  );
+  assert.equal((await readdir(uploadDir)).length, fileCount + 12);
+  const audit = (
+    await pool.query(
+      "SELECT * FROM audit_events WHERE action='import_training_dataset'",
+    )
+  ).rows;
+  assert.equal(audit.length, 1);
+  assert.equal(audit[0].actor_id, actor.id);
 });
 
 test("login throttling blocks repeated guessing attempts", async () => {

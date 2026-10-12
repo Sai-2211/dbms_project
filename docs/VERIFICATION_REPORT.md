@@ -4,7 +4,13 @@
 **Original browser/implementation checkpoint:** `a112d51`; latest automated checks include the Render configuration follow-up.\
 **Database:** real CockroachDB 25.4.0, local single node  
 **Runtime:** Node.js 22.19.0, macOS  
-**Latest result:** 79 automated tests passed — 25 unit checks and 54 database/API checks. No failures or skipped tests in the final runs. The original checkpoint had 50 passing cases; subsequent additions cover Render readiness, administrator recovery and public-user access.
+**Latest result:** 81 automated tests passed — 25 unit checks and 56 database/API checks. No failures or skipped tests in the final runs. The original checkpoint had 50 passing cases; subsequent additions cover Render readiness, administrator recovery and public-user access.
+
+## Controlled training import follow-up
+
+The administrator-only import loads the fixed 119-record workbook through existing validation and approval helpers in one serializable transaction. New checks cover role/CSRF/custom-payload rejection, conflict refusal without partial records/files, district reuse, preservation of existing accounts and unrelated records, exact ownership periods and workflow states, document downloads, sample recovery after temporary-file loss, refusal to recover a hash-mismatched attachment, certificate snapshots, audit actor and repeated-import idempotence. No schema change or account creation is performed.
+
+Latest evidence: `evidence/training-import-unit.tap` (25 passed), `evidence/training-import-integration.tap` (56 passed), and `evidence/training-import-build.txt`. See [TRAINING_IMPORT.md](TRAINING_IMPORT.md). Earlier dated evidence below remains available.
 
 ## Public signup and privacy follow-up
 
@@ -33,7 +39,7 @@ Actual administrator creation in the user's cloud database remains a step the us
 | Check                                        | Result                                             | Evidence                                                                                                                        |
 | -------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | Unit validation/auth/export/deployment suite | 25 passed                                          | `npm test`; `evidence/signup-unit-tests.tap`                                                                                    |
-| Isolated CockroachDB/API suite               | 54 passed                                          | `npm run test:integration`; `evidence/signup-integration-tests.tap`                                                             |
+| Isolated CockroachDB/API suite               | 56 passed                                          | `npm run test:integration`; `evidence/training-import-integration.tap`                                                             |
 | TypeScript and frontend production build     | Passed                                             | `npm run build`                                                                                                                 |
 | Installed dependency advisory audit          | 0 known vulnerabilities                            | `npm audit`, at verification time                                                                                               |
 | Standalone built frontend/API smoke check    | Passed                                             | HTML and built script served; unauthorized records rejected; authenticated live schema returned                                 |

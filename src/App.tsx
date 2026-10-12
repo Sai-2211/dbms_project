@@ -650,6 +650,7 @@ function Workspace({
   } | null>(null);
   const [utility, setUtility] = useState(false);
   const [accounts, setAccounts] = useState(false);
+  const [trainingImport, setTrainingImport] = useState(false);
   const [help, setHelp] = useState(false);
   const [toast, setToast] = useState("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -781,6 +782,17 @@ function Workspace({
                   >
                     <UsersRound size={18} />
                     User accounts
+                  </button>
+                )}
+                {actor.role === "administrator" && (
+                  <button
+                    onClick={() => {
+                      setTrainingImport(true);
+                      setUtility(false);
+                    }}
+                  >
+                    <Upload size={18} />
+                    Load training records
                   </button>
                 )}
                 <button
@@ -925,6 +937,12 @@ function Workspace({
         />
       )}{" "}
       {help && <Guide onClose={() => setHelp(false)} />}{" "}
+      {trainingImport && (
+        <TrainingImportDrawer
+          onClose={() => setTrainingImport(false)}
+          onChanged={changed}
+        />
+      )}
       {toast && (
         <div className="toast" role="status">
           <CheckCircle2 size={19} />
@@ -2498,6 +2516,121 @@ function initialData(r: Meta, defaults: Row | undefined, actor: Actor) {
                     ? "0"
                     : ""),
       ]),
+  );
+}
+
+function TrainingImportDrawer({
+  onClose,
+  onChanged,
+}: {
+  onClose: () => void;
+  onChanged: (s?: string) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<{
+    status: string;
+    created: Record<string, number>;
+    reusedDistricts: number;
+    registeredProperties: number;
+    currentOwnershipRows: number;
+    historicalOwnershipRows: number;
+    expectedApprovalFailures: number;
+    uploadedDocuments: number;
+  } | null>(null);
+  async function load() {
+    setBusy(true);
+    setError("");
+    try {
+      const report = await api<NonNullable<typeof result>>("/training-import", {
+        method: "POST",
+        body: JSON.stringify({ dataset: "tn-manual-entry-v1" }),
+      });
+      setResult(report);
+      onChanged(
+        report.status === "already_imported"
+          ? "Training records were already loaded. No duplicates were added."
+          : "Training records loaded and verified.",
+      );
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Drawer
+      title="Training records"
+      subtitle="A complete fictional registry for exploring the app."
+      onClose={() => {
+        if (!busy) onClose();
+      }}
+    >
+      <div className="drawer-body">
+        <p>
+          Load six properties across Chennai and Thanjavur, with registrations,
+          co-owners, sales, gifts, inheritance, surveys, valuations, taxes,
+          claims and certificates.
+        </p>
+        <p>
+          Existing records and accounts are preserved. Matching districts are
+          reused. Ownership history and audit entries are created automatically,
+          and loading again will not add duplicates.
+        </p>
+        <p>
+          These are fictional training records. No user accounts or passwords
+          are created. Sample PDFs can be recovered after Render Free restarts;
+          other uploaded files still use temporary storage.
+        </p>
+        {error && <ErrorPanel message={error} />}
+        {busy && (
+          <p role="status">
+            Loading and checking relationships. Keep this panel open; this can
+            take a minute.
+          </p>
+        )}
+        {result ? (
+          <section className="detail-section" role="status">
+            <h3>
+              {result.status === "already_imported"
+                ? "Already loaded"
+                : "Records loaded successfully"}
+            </h3>
+            <p>
+              {result.registeredProperties} registered properties ·{" "}
+              {result.historicalOwnershipRows} ownership history rows ·{" "}
+              {result.currentOwnershipRows} current holdings
+            </p>
+            <p>
+              {result.uploadedDocuments} sample attachments ·{" "}
+              {result.expectedApprovalFailures} expected approval failures
+              checked · {result.reusedDistricts} existing districts reused
+            </p>
+            <dl className="detail-grid">
+              {Object.entries(result.created).map(([key, count]) => (
+                <div key={key}>
+                  <dt>{nice(key)}</dt>
+                  <dd>{count}</dd>
+                </div>
+              ))}
+            </dl>
+            <p>
+              The unfinished registration and mortgage-blocked sale remain
+              Pending so you can inspect their requirements.
+            </p>
+          </section>
+        ) : (
+          <button
+            className="button primary"
+            disabled={busy}
+            onClick={() => void load()}
+          >
+            {busy ? <Loader2 size={18} /> : <Upload size={18} />}
+            {busy ? "Loading records…" : "Load complete training dataset"}
+          </button>
+        )}
+      </div>
+    </Drawer>
   );
 }
 
