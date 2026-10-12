@@ -12,6 +12,7 @@ A React web application for the **Digital Land Registration and Property Managem
 - Surveys, boundary updates, valuation history, tax receipt recording and encumbrance claims.
 - Service applications, generated encumbrance-certificate snapshots, user accounts and an audit trail through the workspace menu.
 - Two sign-in areas: **Department / administrator** and **Public user**. Visitors can create read-only public accounts; administrator and staff accounts are created only by signed-in administrators.
+- Login and signup password fields have independent **Show / Hide** buttons and remain hidden by default.
 - Eight access roles: the seven existing department roles plus `public_viewer`, which can only search and view safe registered-property information.
 - Serializable transaction retries, foreign keys, validation, protected finalized records, password hashing and HTTP-only session cookies.
 - Separate interactive **ER diagram** tab: 18 tables and 37 foreign-key relationships read from the live database, with draggable tables, cardinalities, column/constraint inspection, related-table filtering and JSON export.

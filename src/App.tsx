@@ -19,6 +19,8 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleHelp,
+  Eye,
+  EyeOff,
   ClipboardList,
   FileCheck2,
   FileText,
@@ -297,6 +299,60 @@ function Brand() {
     </div>
   );
 }
+function PasswordField({
+  id,
+  label,
+  value,
+  onChange,
+  autoComplete,
+  minLength,
+  maxLength,
+  placeholder,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  autoComplete: "new-password" | "current-password";
+  minLength?: number;
+  maxLength: number;
+  placeholder: string;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="login-password-field">
+      <label htmlFor={id}>{label}</label>
+      <div className="login-password-control">
+        <input
+          id={id}
+          type={visible ? "text" : "password"}
+          autoComplete={autoComplete}
+          required
+          minLength={minLength}
+          maxLength={maxLength}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+        />
+        <button
+          type="button"
+          className="password-visibility"
+          aria-label={`${visible ? "Hide" : "Show"} ${label.toLowerCase()}`}
+          aria-pressed={visible}
+          aria-controls={id}
+          onClick={() => setVisible((v) => !v)}
+        >
+          {visible ? (
+            <EyeOff size={17} aria-hidden="true" />
+          ) : (
+            <Eye size={17} aria-hidden="true" />
+          )}
+          <span>{visible ? "Hide" : "Show"}</span>
+        </button>
+      </div>
+    </div>
+  );
+}
 function Login({
   onLogin,
   initialError,
@@ -410,37 +466,32 @@ function Login({
                 placeholder="Your registry username"
               />
             </label>
-            <label>
-              Password
-              <input
-                type="password"
-                autoComplete={creating ? "new-password" : "current-password"}
-                minLength={creating ? 12 : undefined}
-                maxLength={creating ? 128 : 200}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={
-                  creating
-                    ? "Choose a password · 12–128 characters"
-                    : "Enter your password"
-                }
-              />
-            </label>
+            <PasswordField
+              key={`${portal}-${creating}`}
+              id="login-password"
+              label="Password"
+              autoComplete={creating ? "new-password" : "current-password"}
+              minLength={creating ? 12 : undefined}
+              maxLength={creating ? 128 : 200}
+              value={password}
+              onChange={setPassword}
+              placeholder={
+                creating
+                  ? "Choose a password · 12–128 characters"
+                  : "Enter your password"
+              }
+            />
             {creating && (
-              <label>
-                Confirm password
-                <input
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  minLength={12}
-                  maxLength={128}
-                  value={confirmation}
-                  onChange={(e) => setConfirmation(e.target.value)}
-                  placeholder="Enter the same password again"
-                />
-              </label>
+              <PasswordField
+                id="signup-confirmation"
+                label="Confirm password"
+                autoComplete="new-password"
+                minLength={12}
+                maxLength={128}
+                value={confirmation}
+                onChange={setConfirmation}
+                placeholder="Enter the same password again"
+              />
             )}
             {error && (
               <p className="form-error" role="alert">

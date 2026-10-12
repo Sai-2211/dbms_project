@@ -2756,3 +2756,42 @@ textarea {
   cursor: wait;
   opacity: 0.6;
 }
+
+.login-password-field {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.login-password-control {
+  position: relative;
+}
+.login-form .login-password-control input {
+  display: block;
+  padding-right: 88px;
+}
+.password-visibility {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #48624f;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.password-visibility:hover {
+  background: #edf2e9;
+}
+.password-visibility:focus-visible {
+  outline: 2px solid #71955e;
+  outline-offset: 2px;
+}
