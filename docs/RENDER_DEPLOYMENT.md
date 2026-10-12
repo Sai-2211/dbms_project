@@ -104,7 +104,7 @@ npm run db:admin -- --reset-password
 
 Sign in under **Department / administrator** using `admin@landledger.local` and the application password you entered. The SQL password belongs in the database URL; the application password belongs on the website. Updating `DEMO_ADMIN_PASSWORD` does not change an existing website password. See [ACCOUNT_SETUP.md](ACCOUNT_SETUP.md) for recovery details.
 
-## 6. Create public user accounts
+## 6. Create accounts or let public users sign up
 
 1. Sign in as administrator and open the account menu at the top right.
 2. Choose **User accounts → Add user account**.
@@ -112,7 +112,7 @@ Sign in under **Department / administrator** using `admin@landledger.local` and 
 4. Select **Public user · read-only**, then create the account. No linked owner/officer profile is needed.
 5. Sign out. Select **Public user** on the login screen and sign in with that account.
 
-Public users can search registered properties, filter districts, open safe details, paginate and export the displayed page. They cannot view owner identities, deeds, tax payments, audit logs, accounts, pending/rejected properties or the ER diagram, and cannot change records. There is no public self-registration. Staff accounts still use the department sign-in area and their existing role permissions.
+Public users can search registered properties, filter districts, open basic registration details and paginate. They cannot view locations, encumbrances, owner identities, deeds, tax payments, audit logs, accounts, pending/rejected properties or the ER diagram, and cannot change records. Visitors can also use **Public user → Create account** to sign up without administrator help. The server always creates `public_viewer` accounts; signup never accepts administrator/staff roles, owner links or officer links. Public bulk export is unavailable. Staff accounts still use the department sign-in area and their existing role permissions.
 
 ## 7. Understand the Free limits
 

@@ -2729,3 +2729,30 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+.signup-switch {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 20px 0 0;
+  font-size: 13px;
+  color: #778573;
+}
+.signup-switch button {
+  padding: 6px 3px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #244c3b;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.signup-switch button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}

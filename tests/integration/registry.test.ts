@@ -2235,7 +2235,7 @@ let rejectedPublic: Record<string, any>;
 let privateDistrictId = "";
 const publicSurvey = `PUBLIC-${randomUUID()}`;
 const hiddenSentinel = `PRIVATE-${randomUUID()}`;
-test("administrator creates public accounts, while visitors cannot register or choose a privileged role at login", async () => {
+test("administrator creates public accounts while visitors cannot create privileged accounts or choose a role at login", async () => {
   assert.equal(
     (
       await request("/accounts", undefined, "POST", {
@@ -2368,13 +2368,11 @@ test("public directory, detail, counts and search expose registered property pro
     "survey_no",
     "property_type",
     "area",
-    "location",
     "district_name",
     "state_name",
     "office_name",
     "registration_date",
     "registration_status",
-    "has_active_encumbrance",
   ].sort();
   const result = await request(
     `/public/properties?q=${publicSurvey}`,
@@ -2386,7 +2384,17 @@ test("public directory, detail, counts and search expose registered property pro
   const row = result.body.rows[0];
   assert.deepEqual(Object.keys(row).sort(), expectedFields);
   assert.equal(row.area, "123.4500");
-  assert.equal(row.has_active_encumbrance, true);
+  assert.equal(row.has_active_encumbrance, undefined);
+  assert.equal(row.location, undefined);
+  assert.equal(
+    (
+      await request(
+        "/public/properties?q=Public%20test%20location",
+        publicCookie,
+      )
+    ).body.total,
+    0,
+  );
   assert(!JSON.stringify(row).includes(hiddenSentinel));
   const detail = await request(
     `/public/properties/${publicProperty.id}`,
@@ -2555,34 +2563,285 @@ test("database rejects unknown roles and public users linked to private profiles
   }
 });
 
-test("public encumbrance indicator respects date range and never discloses claimants", async () => {
-  await pool.query(
-    "UPDATE encumbrances SET end_date='2025-01-02' WHERE property_id=$1",
-    [publicProperty.id],
+test("public property details do not expose or allow inference of encumbrance changes", async () => {
+  const initial = (
+    await request(`/public/properties/${publicProperty.id}`, publicCookie)
+  ).body;
+  assert.equal(initial.has_active_encumbrance, undefined);
+  for (const change of [
+    "end_date='2025-01-02'",
+    "start_date='2199-01-01',end_date=NULL",
+    "start_date='2025-01-01',status='released'",
+  ]) {
+    await pool.query(`UPDATE encumbrances SET ${change} WHERE property_id=$1`, [
+      publicProperty.id,
+    ]);
+    assert.deepEqual(
+      (await request(`/public/properties/${publicProperty.id}`, publicCookie))
+        .body,
+      initial,
+    );
+  }
+  assert.equal(
+    (
+      await request(
+        "/public/properties?has_active_encumbrance=true",
+        publicCookie,
+      )
+    ).status,
+    400,
   );
   assert.equal(
-    (await request(`/public/properties/${publicProperty.id}`, publicCookie))
-      .body.has_active_encumbrance,
-    false,
-  );
-  await pool.query(
-    "UPDATE encumbrances SET start_date='2199-01-01',end_date=NULL WHERE property_id=$1",
-    [publicProperty.id],
-  );
-  assert.equal(
-    (await request(`/public/properties/${publicProperty.id}`, publicCookie))
-      .body.has_active_encumbrance,
-    false,
-  );
-  await pool.query(
-    "UPDATE encumbrances SET start_date='2025-01-01',status='released' WHERE property_id=$1",
-    [publicProperty.id],
+    (
+      await request(
+        "/public/properties?location=Public%20test%20location",
+        publicCookie,
+      )
+    ).status,
+    400,
   );
   assert.equal(
-    (await request(`/public/properties/${publicProperty.id}`, publicCookie))
-      .body.has_active_encumbrance,
-    false,
+    (await request("/public/properties/export", publicCookie)).status,
+    400,
   );
+});
+
+test("public self-signup creates a hashed read-only account, audit event and working session without exposing secrets", async () => {
+  const username = `signup-${randomUUID()}@example.test`;
+  const signed = await request("/auth/signup", undefined, "POST", {
+    username: username.toUpperCase(),
+    password,
+    confirmation: password,
+  });
+  assert.equal(signed.status, 201);
+  assert.deepEqual(
+    Object.keys(signed.body).sort(),
+    ["id", "username", "role", "owner_id", "officer_id"].sort(),
+  );
+  assert.equal(signed.body.username, username);
+  assert.equal(signed.body.role, "public_viewer");
+  assert.equal(signed.body.owner_id, null);
+  assert.equal(signed.body.officer_id, null);
+  assert(signed.cookie);
+  assert.equal(
+    (await request("/auth/me", signed.cookie)).body.id,
+    signed.body.id,
+  );
+  assert.equal(
+    (await request("/public/properties", signed.cookie)).status,
+    200,
+  );
+  for (const endpoint of [
+    "/accounts",
+    "/schema",
+    "/records/owners",
+    "/dashboard",
+  ])
+    assert.equal((await request(endpoint, signed.cookie)).status, 403);
+  assert.equal(
+    (
+      await request("/accounts", signed.cookie, "POST", {
+        username: "escalation",
+        password,
+        role: "administrator",
+      })
+    ).status,
+    403,
+  );
+  const user = (
+    await pool.query("SELECT * FROM users WHERE id=$1", [signed.body.id])
+  ).rows[0];
+  assert.notEqual(user.password_hash, password);
+  assert.equal(verifyPassword(password, user.password_hash), true);
+  const events = (
+    await pool.query(
+      "SELECT * FROM audit_events WHERE actor_id=$1 AND action='self_register'",
+      [user.id],
+    )
+  ).rows;
+  assert.equal(events.length, 1);
+  assert.equal(events[0].entity_id, user.id);
+  assert.deepEqual(events[0].summary, { role: "public_viewer" });
+  assert(!JSON.stringify(events).includes(password));
+  const duplicate = await request("/auth/signup", undefined, "POST", {
+    username: username.toUpperCase(),
+    password,
+    confirmation: password,
+  });
+  assert.equal(duplicate.status, 409);
+  assert.equal(duplicate.cookie, undefined);
+  assert.equal(
+    Number(
+      (
+        await pool.query("SELECT count(*) AS n FROM users WHERE username=$1", [
+          username,
+        ])
+      ).rows[0].n,
+    ),
+    1,
+  );
+  const loginResult = await request("/auth/login", undefined, "POST", {
+    username,
+    password,
+    portal: "public",
+  });
+  assert.equal(loginResult.status, 200);
+  assert.equal(loginResult.body.role, "public_viewer");
+});
+
+test("public signup rejects privileged payloads, reserved usernames, bad credentials and foreign-origin/missing-header requests", async () => {
+  const username = `invalid-signup-${randomUUID()}`;
+  const valid = { username, password, confirmation: password };
+  const before = Number(
+    (await pool.query("SELECT count(*) AS n FROM users")).rows[0].n,
+  );
+  for (const body of [
+    { ...valid, role: "administrator" },
+    { ...valid, owner_id: ownerUser.owner_id },
+    { ...valid, officer_id: officer.id },
+    { ...valid, active: true },
+    { ...valid, password_hash: "forged" },
+    { ...valid, username: "ADMIN@LANDLEDGER.LOCAL" },
+    { ...valid, password: "short", confirmation: "short" },
+    { ...valid, confirmation: "does-not-match" },
+    [],
+    "invalid",
+    42,
+  ]) {
+    const result = await request("/auth/signup", undefined, "POST", body);
+    assert.equal(result.status, 400);
+    assert.equal(result.cookie, undefined);
+    assert(!JSON.stringify(result.body).includes(password));
+  }
+  const forbiddenHeaders: Record<string, string>[] = [
+    { "Content-Type": "application/json" },
+    {
+      "Content-Type": "application/json",
+      "X-LandLedger-Request": "1",
+      Origin: "https://foreign.example.test",
+    },
+  ];
+  for (const headers of forbiddenHeaders) {
+    const response = await fetch("http://127.0.0.1:3101/api/auth/signup", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(valid),
+    });
+    assert.equal(response.status, 403);
+  }
+  assert.equal(
+    Number((await pool.query("SELECT count(*) AS n FROM users")).rows[0].n),
+    before,
+  );
+});
+
+test("only existing administrators can create additional administrator and staff accounts", async () => {
+  const username = `second-admin-${randomUUID()}`;
+  const created = await request(
+    "/accounts",
+    await login("test-admin"),
+    "POST",
+    { username, password, role: "administrator" },
+  );
+  assert.equal(created.status, 201);
+  assert.equal(created.body.role, "administrator");
+  assert.equal(created.body.password_hash, undefined);
+  const signed = await request("/auth/login", undefined, "POST", {
+    username,
+    password,
+    portal: "department",
+  });
+  assert.equal(signed.status, 200);
+  assert.equal((await request("/accounts", signed.cookie)).status, 200);
+  for (const cookie of [
+    undefined,
+    publicCookie,
+    await login("test-owner"),
+    await login("test-bank"),
+  ]) {
+    const denied = await request("/accounts", cookie, "POST", {
+      username: `unauthorized-${randomUUID()}`,
+      password,
+      role: "administrator",
+    });
+    assert.equal(denied.status, cookie ? 403 : 401);
+  }
+});
+
+test("public signup throttles repeated attempts independently of sign-in", async () => {
+  const server = spawn(
+    process.execPath,
+    ["--import", "tsx", "server/index.ts"],
+    {
+      env: {
+        ...process.env,
+        PORT: "3103",
+        APP_ORIGIN: "http://127.0.0.1:3103",
+        UPLOAD_DIR: uploadDir,
+        NODE_ENV: "development",
+      },
+      stdio: "ignore",
+    },
+  );
+  deploymentChildren.add(server);
+  try {
+    let ready = false;
+    for (let attempt = 0; attempt < 100; attempt++) {
+      try {
+        if ((await fetch("http://127.0.0.1:3103/api/health")).ok) {
+          ready = true;
+          break;
+        }
+      } catch {}
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    assert(ready);
+    const headers = {
+      "Content-Type": "application/json",
+      "X-LandLedger-Request": "1",
+    };
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const response = await fetch("http://127.0.0.1:3103/api/auth/signup", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          username: "invalid",
+          password: "short",
+          confirmation: "short",
+        }),
+      });
+      assert.equal(response.status, 400);
+    }
+    assert.equal(
+      (
+        await fetch("http://127.0.0.1:3103/api/auth/signup", {
+          method: "POST",
+          headers,
+          body: "{}",
+        })
+      ).status,
+      429,
+    );
+    const signin = await fetch("http://127.0.0.1:3103/api/auth/login", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        username: "test-admin",
+        password,
+        portal: "department",
+      }),
+    });
+    assert.equal(signin.status, 200);
+  } finally {
+    if (server.exitCode === null && server.signalCode === null) {
+      const exited = new Promise<void>((resolve) =>
+        server.once("exit", () => resolve()),
+      );
+      server.kill("SIGTERM");
+      await exited;
+    }
+    deploymentChildren.delete(server);
+  }
 });
 
 test("login throttling blocks repeated guessing attempts", async () => {

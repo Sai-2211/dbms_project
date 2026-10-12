@@ -49,7 +49,7 @@ The existing session system does not revoke individual already-issued tokens on 
 | Website still rejects the login      | Same database in Render and the setup command; exact application password chosen during setup; use the reset command if the account already existed. |
 | Too many sign-in attempts            | Allow the 15-minute login-limit window to expire before trying again.                                                                                |
 
-Account creation in the web interface remains **administrator-only**. Once signed in, use the **Users** workspace for additional accounts. No public signup route or new role was added as part of this login repair.
+Administrator and staff account creation remains **administrator-only** through **User accounts**. Public users may self-register through the separate public signup flow; the administrator recovery command itself still creates or resets only the fixed administrator.
 
 ## Render Free document-storage limitation
 
@@ -57,4 +57,4 @@ For a free service, set `UPLOAD_DIR=uploads` and do not attach a paid disk. This
 
 ## Create accounts after administrator setup
 
-Use **Department / administrator** when signing in. Open the top-right account menu → **User accounts → Add user account**. Select **Public user · read-only** for a general visitor; choose a username and private password of 12–128 characters. The visitor signs in through **Public user** and can view safe registered-property information only. Existing owner and officer accounts use the department area and require their matching linked profiles. There is no public self-registration. See [PUBLIC_USER_ACCESS.md](PUBLIC_USER_ACCESS.md).
+Use **Department / administrator** when signing in. Open the top-right account menu → **User accounts → Add user account**. Select **Public user · read-only** for a general visitor; choose a username and private password of 12–128 characters. The visitor signs in through **Public user** and can view safe registered-property information only. Existing owner and officer accounts use the department area and require their matching linked profiles. Visitors may alternatively select **Public user → Create account** to register a read-only account themselves. See [PUBLIC_USER_ACCESS.md](PUBLIC_USER_ACCESS.md).

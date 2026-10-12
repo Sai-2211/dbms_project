@@ -1,0 +1,334 @@
+TAP version 13
+# Subtest: cloud administrator setup creates an audited login, preserves existing passwords unless reset, and recovers access
+ok 1 - cloud administrator setup creates an audited login, preserves existing passwords unless reset, and recovers access
+  ---
+  duration_ms: 12284.101542
+  type: 'test'
+  ...
+# Subtest: administrator setup does not elevate another role or replace an account after concurrent creation
+ok 2 - administrator setup does not elevate another role or replace an account after concurrent creation
+  ---
+  duration_ms: 154.383667
+  type: 'test'
+  ...
+# Subtest: Render proxy mode keeps client login limits separate and rejects spoofed outer forwarded addresses
+ok 3 - Render proxy mode keeps client login limits separate and rejects spoofed outer forwarded addresses
+  ---
+  duration_ms: 896.776459
+  type: 'test'
+  ...
+# Subtest: Render demo bootstrap creates private accounts and document files, is idempotent, and refuses unrelated records
+ok 4 - Render demo bootstrap creates private accounts and document files, is idempotent, and refuses unrelated records
+  ---
+  duration_ms: 11318.665
+  type: 'test'
+  ...
+# Subtest: foreign keys reject nonexistent land parcels
+ok 5 - foreign keys reject nonexistent land parcels
+  ---
+  duration_ms: 4.083208
+  type: 'test'
+  ...
+# Subtest: approval creates ownership history and a mutation atomically
+ok 6 - approval creates ownership history and a mutation atomically
+  ---
+  duration_ms: 87.692167
+  type: 'test'
+  ...
+# Subtest: a late audit failure rolls back every ownership and transaction update
+ok 7 - a late audit failure rolls back every ownership and transaction update
+  ---
+  duration_ms: 76.919625
+  type: 'test'
+  ...
+# Subtest: two simultaneous sales cannot both consume the same ownership
+ok 8 - two simultaneous sales cannot both consume the same ownership
+  ---
+  duration_ms: 77.259708
+  type: 'test'
+  ...
+# Subtest: a partial transfer retains joint ownership with exact shares
+ok 9 - a partial transfer retains joint ownership with exact shares
+  ---
+  duration_ms: 71.059041
+  type: 'test'
+  ...
+# Subtest: unverified deeds and mismatched shares block approval without partial updates
+ok 10 - unverified deeds and mismatched shares block approval without partial updates
+  ---
+  duration_ms: 76.749625
+  type: 'test'
+  ...
+# Subtest: active encumbrances block ownership transfers
+ok 11 - active encumbrances block ownership transfers
+  ---
+  duration_ms: 67.695292
+  type: 'test'
+  ...
+# Subtest: party records cannot be moved out of an approved transaction
+ok 12 - party records cannot be moved out of an approved transaction
+  ---
+  duration_ms: 54.435459
+  type: 'test'
+  ...
+# Subtest: bank access masks private owner details and rejects document access and writes
+ok 13 - bank access masks private owner details and rejects document access and writes
+  ---
+  duration_ms: 46.022667
+  type: 'test'
+  ...
+# Subtest: owner portal sees only its own parcels and protects unrelated record IDs
+ok 14 - owner portal sees only its own parcels and protects unrelated record IDs
+  ---
+  duration_ms: 102.5795
+  type: 'test'
+  ...
+# Subtest: API status filters work and direct approval bypasses are rejected
+ok 15 - API status filters work and direct approval bypasses are rejected
+  ---
+  duration_ms: 83.082708
+  type: 'test'
+  ...
+# Subtest: digital uploads validate file contents and persist downloadable copies
+ok 16 - digital uploads validate file contents and persist downloadable copies
+  ---
+  duration_ms: 98.565834
+  type: 'test'
+  ...
+# Subtest: the complete API registration workflow verifies a file and persists approved ownership
+ok 17 - the complete API registration workflow verifies a file and persists approved ownership
+  ---
+  duration_ms: 143.929334
+  type: 'test'
+  ...
+# Subtest: all other primary modules accept valid input and preserve historical records
+ok 18 - all other primary modules accept valid input and preserve historical records
+  ---
+  duration_ms: 187.697875
+  type: 'test'
+  ...
+# Subtest: certificate snapshots include overlapping released claims and cannot reuse finalized applications
+ok 19 - certificate snapshots include overlapping released claims and cannot reuse finalized applications
+  ---
+  duration_ms: 93.264167
+  type: 'test'
+  ...
+# Subtest: office district and property transaction links reject inconsistent changes
+ok 20 - office district and property transaction links reject inconsistent changes
+  ---
+  duration_ms: 105.230792
+  type: 'test'
+  ...
+# Subtest: officer designation and linked identity are enforced
+ok 21 - officer designation and linked identity are enforced
+  ---
+  duration_ms: 101.907125
+  type: 'test'
+  ...
+# Subtest: SQL payloads are treated as data in login, search, writes, IDs and resource names
+ok 22 - SQL payloads are treated as data in login, search, writes, IDs and resource names
+  ---
+  duration_ms: 42.171458
+  type: 'test'
+  ...
+# Subtest: private owner values cannot be inferred through search and accounts stay administrator-only
+ok 23 - private owner values cannot be inferred through search and accounts stay administrator-only
+  ---
+  duration_ms: 4.169375
+  type: 'test'
+  ...
+# Subtest: audit records and ownership history cannot be written through public record endpoints
+ok 24 - audit records and ownership history cannot be written through public record endpoints
+  ---
+  duration_ms: 82.342667
+  type: 'test'
+  ...
+# Subtest: unauthenticated, forged and disabled-account sessions are rejected
+ok 25 - unauthenticated, forged and disabled-account sessions are rejected
+  ---
+  duration_ms: 32.5445
+  type: 'test'
+  ...
+# Subtest: foreign origins, malformed JSON and oversized bodies receive safe errors
+ok 26 - foreign origins, malformed JSON and oversized bodies receive safe errors
+  ---
+  duration_ms: 3.021
+  type: 'test'
+  ...
+# Subtest: invalid form values and protected fields are rejected at the API boundary
+ok 27 - invalid form values and protected fields are rejected at the API boundary
+  ---
+  duration_ms: 12.656333
+  type: 'test'
+  ...
+# Subtest: referenced records and finalized property data cannot be deleted or edited
+ok 28 - referenced records and finalized property data cannot be deleted or edited
+  ---
+  duration_ms: 122.18225
+  type: 'test'
+  ...
+# Subtest: transfer chronology, overselling and identical buyer/seller are blocked
+ok 29 - transfer chronology, overselling and identical buyer/seller are blocked
+  ---
+  duration_ms: 261.009166
+  type: 'test'
+  ...
+# Subtest: inheritance and gift use their matching deeds and preserve exact ownership
+ok 30 - inheritance and gift use their matching deeds and preserve exact ownership
+  ---
+  duration_ms: 234.739708
+  type: 'test'
+  ...
+# Subtest: registrars from another office and rejected linked applications cannot be approved
+ok 31 - registrars from another office and rejected linked applications cannot be approved
+  ---
+  duration_ms: 145.931167
+  type: 'test'
+  ...
+# Subtest: oversized, extra and unauthorized uploads are blocked, downloads require access
+ok 32 - oversized, extra and unauthorized uploads are blocked, downloads require access
+  ---
+  duration_ms: 74.646709
+  type: 'test'
+  ...
+# Subtest: live ER metadata agrees with every table, FK and nullable reference in approved SQL
+ok 33 - live ER metadata agrees with every table, FK and nullable reference in approved SQL
+  ---
+  duration_ms: 45.6015
+  type: 'test'
+  ...
+# Subtest: every one of the 37 foreign keys rejects a missing parent in the database
+ok 34 - every one of the 37 foreign keys rejects a missing parent in the database
+  ---
+  duration_ms: 477.70175
+  type: 'test'
+  ...
+# Subtest: backdated completed surveys preserve the latest boundary and future completion is rejected
+ok 35 - backdated completed surveys preserve the latest boundary and future completion is rejected
+  ---
+  duration_ms: 84.394125
+  type: 'test'
+  ...
+# Subtest: owner transaction submission links the existing application without creating a duplicate
+ok 36 - owner transaction submission links the existing application without creating a duplicate
+  ---
+  duration_ms: 62.256833
+  type: 'test'
+  ...
+# Subtest: account creation validates passwords, roles and required linked profiles
+ok 37 - account creation validates passwords, roles and required linked profiles
+  ---
+  duration_ms: 67.776375
+  type: 'test'
+  ...
+# Subtest: database checks and active ownership uniqueness hold outside the API
+ok 38 - database checks and active ownership uniqueness hold outside the API
+  ---
+  duration_ms: 56.267458
+  type: 'test'
+  ...
+# Subtest: search resolves related names and bounds pagination
+ok 39 - search resolves related names and bounds pagination
+  ---
+  duration_ms: 3.796542
+  type: 'test'
+  ...
+# Subtest: owners cannot approve registrations or set privileged fields
+ok 40 - owners cannot approve registrations or set privileged fields
+  ---
+  duration_ms: 56.802291
+  type: 'test'
+  ...
+# Subtest: replacing one document preserves a file still referenced by another document
+ok 41 - replacing one document preserves a file still referenced by another document
+  ---
+  duration_ms: 176.849666
+  type: 'test'
+  ...
+# Subtest: survey and valuation officers cannot maintain a parcel from another registration office
+ok 42 - survey and valuation officers cannot maintain a parcel from another registration office
+  ---
+  duration_ms: 79.762667
+  type: 'test'
+  ...
+# Subtest: public role migration upgrades legacy checks twice without changing existing accounts or relationships
+ok 43 - public role migration upgrades legacy checks twice without changing existing accounts or relationships
+  ---
+  duration_ms: 1874.197666
+  type: 'test'
+  ...
+# Subtest: administrator creates public accounts while visitors cannot create privileged accounts or choose a role at login
+ok 44 - administrator creates public accounts while visitors cannot create privileged accounts or choose a role at login
+  ---
+  duration_ms: 109.373459
+  type: 'test'
+  ...
+# Subtest: public directory, detail, counts and search expose registered property projections only
+ok 45 - public directory, detail, counts and search expose registered property projections only
+  ---
+  duration_ms: 44.248708
+  type: 'test'
+  ...
+# Subtest: public accounts cannot access any department data, documents, schema or mutating endpoint
+ok 46 - public accounts cannot access any department data, documents, schema or mutating endpoint
+  ---
+  duration_ms: 15.016084
+  type: 'test'
+  ...
+# Subtest: public search validates types, size, pagination and allowed fields without leaking private filters
+ok 47 - public search validates types, size, pagination and allowed fields without leaking private filters
+  ---
+  duration_ms: 12.84625
+  type: 'test'
+  ...
+# Subtest: database rejects unknown roles and public users linked to private profiles
+ok 48 - database rejects unknown roles and public users linked to private profiles
+  ---
+  duration_ms: 41.372042
+  type: 'test'
+  ...
+# Subtest: public property details do not expose or allow inference of encumbrance changes
+ok 49 - public property details do not expose or allow inference of encumbrance changes
+  ---
+  duration_ms: 51.487209
+  type: 'test'
+  ...
+# Subtest: public self-signup creates a hashed read-only account, audit event and working session without exposing secrets
+ok 50 - public self-signup creates a hashed read-only account, audit event and working session without exposing secrets
+  ---
+  duration_ms: 102.423709
+  type: 'test'
+  ...
+# Subtest: public signup rejects privileged payloads, reserved usernames, bad credentials and foreign-origin/missing-header requests
+ok 51 - public signup rejects privileged payloads, reserved usernames, bad credentials and foreign-origin/missing-header requests
+  ---
+  duration_ms: 7.04225
+  type: 'test'
+  ...
+# Subtest: only existing administrators can create additional administrator and staff accounts
+ok 52 - only existing administrators can create additional administrator and staff accounts
+  ---
+  duration_ms: 56.322625
+  type: 'test'
+  ...
+# Subtest: public signup throttles repeated attempts independently of sign-in
+ok 53 - public signup throttles repeated attempts independently of sign-in
+  ---
+  duration_ms: 262.748666
+  type: 'test'
+  ...
+# Subtest: login throttling blocks repeated guessing attempts
+ok 54 - login throttling blocks repeated guessing attempts
+  ---
+  duration_ms: 189.474292
+  type: 'test'
+  ...
+1..54
+# tests 54
+# suites 0
+# pass 54
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 31848.951875

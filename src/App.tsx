@@ -309,15 +309,26 @@ function Login({
   const [error, setError] = useState(initialError);
   const [busy, setBusy] = useState(false);
   const [portal, setPortal] = useState<"department" | "public">("department");
+  const [creating, setCreating] = useState(false);
+  const [confirmation, setConfirmation] = useState("");
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError("");
+    if (creating && password !== confirmation) {
+      setError("The passwords do not match.");
+      setBusy(false);
+      return;
+    }
     try {
       onLogin(
-        await api<Actor>("/auth/login", {
+        await api<Actor>(creating ? "/auth/signup" : "/auth/login", {
           method: "POST",
-          body: JSON.stringify({ username, password, portal }),
+          body: JSON.stringify(
+            creating
+              ? { username, password, confirmation }
+              : { username, password, portal },
+          ),
         }),
       );
     } catch (e) {
@@ -357,10 +368,12 @@ function Login({
               ? "PUBLIC PROPERTY PORTAL"
               : "REGISTRY WORKSPACE"}
           </span>
-          <h2>Welcome back.</h2>
+          <h2>{creating ? "Create your account." : "Welcome back."}</h2>
           <p>
             {portal === "public"
-              ? "View registered properties with your administrator-issued account."
+              ? creating
+                ? "Sign up to explore registered properties. Your account can view public information only."
+                : "Sign in to view registered properties, or create a free public account."
               : "Sign in to manage land records and department services."}
           </p>
           <div className="login-access-tabs" aria-label="Sign-in area">
@@ -369,9 +382,13 @@ function Login({
                 type="button"
                 key={value}
                 aria-pressed={portal === value}
+                disabled={busy}
                 onClick={() => {
                   setPortal(value);
                   setError("");
+                  setCreating(false);
+                  setPassword("");
+                  setConfirmation("");
                 }}
               >
                 {value === "department"
@@ -386,6 +403,8 @@ function Login({
               <input
                 autoComplete="username"
                 required
+                minLength={creating ? 3 : undefined}
+                maxLength={creating ? 100 : 200}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Your registry username"
@@ -395,13 +414,34 @@ function Login({
               Password
               <input
                 type="password"
-                autoComplete="current-password"
+                autoComplete={creating ? "new-password" : "current-password"}
+                minLength={creating ? 12 : undefined}
+                maxLength={creating ? 128 : 200}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
+                placeholder={
+                  creating
+                    ? "Choose a password · 12–128 characters"
+                    : "Enter your password"
+                }
               />
             </label>
+            {creating && (
+              <label>
+                Confirm password
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={12}
+                  maxLength={128}
+                  value={confirmation}
+                  onChange={(e) => setConfirmation(e.target.value)}
+                  placeholder="Enter the same password again"
+                />
+              </label>
+            )}
             {error && (
               <p className="form-error" role="alert">
                 {error}
@@ -414,13 +454,36 @@ function Login({
                 <LockKeyhole size={18} />
               )}{" "}
               {busy
-                ? "Signing in…"
-                : portal === "public"
-                  ? "Sign in to public portal"
-                  : "Sign in to workspace"}
+                ? creating
+                  ? "Creating account…"
+                  : "Signing in…"
+                : creating
+                  ? "Create public account"
+                  : portal === "public"
+                    ? "Sign in to public portal"
+                    : "Sign in to workspace"}
               <ArrowRight size={18} />
             </button>
           </form>
+          {portal === "public" && (
+            <div className="signup-switch">
+              <span>
+                {creating ? "Already have an account?" : "New to LandLedger?"}
+              </span>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setCreating((v) => !v);
+                  setPassword("");
+                  setConfirmation("");
+                  setError("");
+                }}
+              >
+                {creating ? "Sign in" : "Create account"}
+              </button>
+            </div>
+          )}
           {import.meta.env.DEV && portal === "department" && (
             <div className="demo-hint">
               <strong>Local demonstration</strong>
@@ -441,8 +504,9 @@ function Login({
           )}
           <div className="login-note">
             <ShieldCheck size={17} />
-            Accounts are created by an administrator. Contact your registry
-            office for access.
+            {portal === "public"
+              ? "Public accounts can view registered property information only. Contact the registration office for services."
+              : "Administrator and staff accounts are created by an administrator. Contact your registry office for access."}
           </div>
         </div>
       </section>

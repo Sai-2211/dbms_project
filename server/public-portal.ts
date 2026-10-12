@@ -4,10 +4,8 @@ import { demand } from "./errors.js";
 import { uuidPattern } from "./validation.js";
 
 // This projection is the public contract. Never select p.* or join owner records.
-const projection = `p.id,p.survey_no,p.property_type,p.area::STRING AS area,p.location,
-  d.district_name,d.state_name,o.office_name,p.registration_date,p.registration_status,
-  EXISTS (SELECT 1 FROM encumbrances e WHERE e.property_id=p.id AND e.status='active'
-    AND e.start_date<=current_date AND (e.end_date IS NULL OR e.end_date>=current_date)) AS has_active_encumbrance`;
+const projection = `p.id,p.survey_no,p.property_type,p.area::STRING AS area,
+  d.district_name,d.state_name,o.office_name,p.registration_date,p.registration_status`;
 const from = `FROM properties p JOIN districts d ON d.id=p.district_id
   JOIN offices o ON o.id=p.office_id`;
 
@@ -74,7 +72,7 @@ publicPortal.get("/properties", async (req, res) => {
   if (q.trim()) {
     // Escape LIKE metacharacters so searches are literal; SQL values stay bound.
     values.push(`%${q.trim().replace(/[\\%_]/g, "\\$&")}%`);
-    where += ` AND (p.survey_no ILIKE $${values.length} OR p.location ILIKE $${values.length}
+    where += ` AND (p.survey_no ILIKE $${values.length}
       OR p.property_type ILIKE $${values.length} OR d.district_name ILIKE $${values.length}
       OR d.state_name ILIKE $${values.length} OR o.office_name ILIKE $${values.length})`;
   }

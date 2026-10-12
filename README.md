@@ -11,7 +11,7 @@ A React web application for the **Digital Land Registration and Property Managem
 - Deed uploads and verification; a sub-registrar approves transactions.
 - Surveys, boundary updates, valuation history, tax receipt recording and encumbrance claims.
 - Service applications, generated encumbrance-certificate snapshots, user accounts and an audit trail through the workspace menu.
-- Two sign-in areas: **Department / administrator** and **Public user**. Administrators create accounts; there is no public signup.
+- Two sign-in areas: **Department / administrator** and **Public user**. Visitors can create read-only public accounts; administrator and staff accounts are created only by signed-in administrators.
 - Eight access roles: the seven existing department roles plus `public_viewer`, which can only search and view safe registered-property information.
 - Serializable transaction retries, foreign keys, validation, protected finalized records, password hashing and HTTP-only session cookies.
 - Separate interactive **ER diagram** tab: 18 tables and 37 foreign-key relationships read from the live database, with draggable tables, cardinalities, column/constraint inspection, related-table filtering and JSON export.
@@ -89,7 +89,7 @@ The seed creates 24 fictional properties, nine owners, four districts and exampl
 
 Start with [the step-by-step demo guide](docs/DEMO_GUIDE.md). It covers a new registration, a transfer, verification, joint ownership, rollback, role access and the ER explorer. The dashboard is populated from database queries, rather than hardcoded counts.
 
-Read [the detailed architecture report](docs/ARCHITECTURE.md) for the frontend, backend, database connection and transfer workflow. [The verification report](docs/VERIFICATION_REPORT.md) contains all 71 passing test cases, security checks, browser evidence and practical limitations.
+Read [the detailed architecture report](docs/ARCHITECTURE.md) for the frontend, backend, database connection and transfer workflow. [The verification report](docs/VERIFICATION_REPORT.md) contains all 79 passing test cases, security checks, browser evidence and practical limitations.
 
 ## Host on Render
 
@@ -102,7 +102,7 @@ Read [the detailed architecture report](docs/ARCHITECTURE.md) for the frontend, 
 5. Open your service's `/api/health` URL. `{"status":"connected","database":"CockroachDB"}` confirms database connectivity. It does not mean an administrator account exists yet.
 6. Follow [first administrator setup](docs/ACCOUNT_SETUP.md). In your local repository terminal, update the code with `git pull origin main`, install with `npm ci`, and run `npm run db:admin`. Privately enter the **same DATABASE_URL as Render**, then choose and confirm an application login password. Log in as `admin@landledger.local` using that password. To recover an existing administrator, use `npm run db:admin -- --reset-password` instead. This account is written directly to CockroachDB; no Render Shell is needed.
 
-`DEMO_ADMIN_PASSWORD` does not create or update accounts merely by being set. The local administrator command creates only the administrator; it does not populate the registry with sample parcels or document references. Additional accounts are created by an administrator in the **Users** workspace. Public self-registration is not enabled.
+`DEMO_ADMIN_PASSWORD` does not create or update accounts merely by being set. The local administrator command creates only the administrator; it does not populate the registry with sample parcels or document references. Administrators create privileged accounts through **User accounts**. Visitors can use **Public user → Create account** to register read-only public accounts.
 
 Render Free sleeps after inactivity and has no persistent disk or Shell access. With `UPLOAD_DIR=uploads`, uploaded files are temporary and can disappear after restarts, idle shutdowns or deployments even though SQL metadata remains. Persistent cloud document storage is a separate update, not implemented by the administrator setup command. CockroachDB records remain in the external database. See [the deployment guide](docs/RENDER_DEPLOYMENT.md) and [Render's Free limitations](https://render.com/docs/free).
 
@@ -120,11 +120,13 @@ The supplied scan omitted entity attribute descriptions 4–7. The user approved
 
 ## Administrator and public user login
 
-Choose **Department / administrator** for existing staff/owner accounts and **Public user** for administrator-issued read-only accounts. The selected button does not grant permissions: the server reads the account role from CockroachDB on every request.
+Choose **Department / administrator** for existing staff/owner accounts and **Public user** for read-only public accounts. The selected button does not grant permissions: the server reads the account role from CockroachDB on every request.
 
-Administrators use the top-right account menu → **User accounts → Add user account**, selecting **Public user · read-only**. These accounts can browse only registered properties, search safe fields, filter districts, open details and export their displayed page. Owner identities/contact information, documents, financial records, pending/rejected properties, staff accounts, audits and the ER diagram are unavailable to them. Requests to editing endpoints are denied by the backend. Staff retain their existing permissions.
+Administrators use the top-right account menu → **User accounts → Add user account**, selecting **Public user · read-only**. These accounts can browse only registered properties, search safe fields, filter districts, open basic registration details. Location/address text, encumbrance indicators, owner identities/contact information, documents, financial records, pending/rejected properties, staff accounts, audits and the ER diagram are unavailable to them. Requests to editing endpoints are denied by the backend. Staff retain their existing permissions.
 
 The schema update adds `public_viewer` to the existing `users` role/profile checks. No table, column or foreign key was added; the ER model remains **18 tables and 37 relationships**. `npm run db:migrate` creates the initial schema and runs the repeatable upgrade for existing databases, preserving records and passwords. Render applies this automatically with `npm run start:render`. See [the implementation notes](docs/PUBLIC_USER_ACCESS.md).
+
+Visitors can also select **Public user → Create account**, enter a username and a password of 12–128 characters, and confirm the password. Signup opens the public portal automatically. The server fixes the role to `public_viewer`, rejects role/profile overrides, protects department usernames and limits signup attempts. Public responses and searches exclude locations and encumbrances; public bulk export is removed. This signup/privacy update makes **no schema changes**. See [the signup and privacy report](docs/PUBLIC_SIGNUP.md).
 
 ## Checks
 
@@ -134,7 +136,7 @@ npm run test:integration
 npm run build
 ```
 
-The integration tests require a reachable CockroachDB instance and a development SQL user allowed to create databases. Each run creates its own `landledger_test_*` databases and removes only those test databases afterward. The tests exercise all 37 foreign keys, full rollback, conflicting transfers, joint ownership, document checks, role access, status filters, SQL injection, escaped HTML, upload/download, certificates, surveys, live schema accuracy, Render proxy limits, private demo initialization, administrator creation/recovery, public-user privacy, login-area restrictions and repeatable role migration. The latest suites passed 21 unit and 50 integration tests. GitHub Actions repeats the checks on each push and pull request.
+The integration tests require a reachable CockroachDB instance and a development SQL user allowed to create databases. Each run creates its own `landledger_test_*` databases and removes only those test databases afterward. The tests exercise all 37 foreign keys, full rollback, conflicting transfers, joint ownership, document checks, role access, status filters, SQL injection, escaped HTML, upload/download, certificates, surveys, live schema accuracy, Render proxy limits, private demo initialization, administrator creation/recovery, public-user privacy, login-area restrictions and repeatable role migration. The latest suites passed 25 unit and 54 integration tests. GitHub Actions repeats the checks on each push and pull request.
 
 The application never substitutes SQLite, PostgreSQL, browser storage or mock data when CockroachDB is unavailable. The interface displays a connection or operation error.
 
@@ -187,4 +189,4 @@ The single-node setup demonstrates relational integrity and atomic, serializable
 
 The audit trail is append-only through the application API. A database administrator can still modify database rows; it is not a cryptographically immutable legal ledger. Bank verification is a read-only view, not a lending decision. A certificate captures the claims currently stored for its requested period, including released claims that overlap the period; it does not certify the completeness of external government records.
 
-Before public production use, configure TLS and least-privilege database credentials, replace demonstration accounts, establish backup/recovery and file retention, and review the application against the actual department's requirements. The public-user portal exposes only its explicit registered-property projection to administrator-issued accounts; private owner data and documents remain restricted.
+Before public production use, configure TLS and least-privilege database credentials, replace demonstration accounts, establish backup/recovery and file retention, and review the application against the actual department's requirements. The public-user portal exposes only its explicit registered-property projection to read-only public accounts; private owner data and documents remain restricted.

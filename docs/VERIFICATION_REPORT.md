@@ -4,13 +4,19 @@
 **Original browser/implementation checkpoint:** `a112d51`; latest automated checks include the Render configuration follow-up.\
 **Database:** real CockroachDB 25.4.0, local single node  
 **Runtime:** Node.js 22.19.0, macOS  
-**Latest result:** 71 automated tests passed — 21 unit checks and 50 database/API checks. No failures or skipped tests in the final runs. The original checkpoint had 50 passing cases; subsequent additions cover Render readiness, administrator recovery and public-user access.
+**Latest result:** 79 automated tests passed — 25 unit checks and 54 database/API checks. No failures or skipped tests in the final runs. The original checkpoint had 50 passing cases; subsequent additions cover Render readiness, administrator recovery and public-user access.
 
-## Public-user access follow-up
+## Public signup and privacy follow-up
+
+The explicitly approved public signup creates only `public_viewer` accounts. Additional tests verify fixed role/profile values, salted hashes, secret-free audits, working sessions, username collision handling, rejected privilege overrides and reserved department names, password/confirmation bounds, malformed bodies, CSRF/origin rejection and independent signup throttling. Existing administrators can create additional administrators; visitors, public users, owners and bank accounts cannot. The public projection/search now omit locations and every encumbrance indicator, and public bulk export has been removed. Changing claim status/date cannot change the public property response. No schema change was needed.
+
+Current evidence: `evidence/signup-unit-tests.tap` (25 passed), `evidence/signup-integration-tests.tap` (54 passed) and `evidence/signup-build.txt`. Public-directory export and encumbrance checks below describe the previous release and have been superseded by the tighter privacy policy. See [PUBLIC_SIGNUP.md](PUBLIC_SIGNUP.md).
+
+## Public-user access follow-up (earlier release)
 
 The two login areas and administrator-created `public_viewer` accounts were verified against a real local CockroachDB instance. Migration from the original two generated account checks succeeded twice with identical existing account rows and all 37 foreign keys retained. Public account creation, wrong-area login and forged role attempts were tested. Explicit public projections prevented hidden field disclosure/search; registered-only counts, district options and direct-ID details excluded pending/rejected records. Public requests to department APIs, files, accounts, schema and mutation routes returned 403. Query typing, bounds, SQL injection and current-date encumbrance indicators were exercised.
 
-Latest evidence: `evidence/public-unit-tests.tap` (21 passed), `evidence/public-integration-tests.tap` (50 passed), `evidence/public-build.txt` (passed), `evidence/public-dependency-audit.json` (0 known vulnerabilities) and `evidence/public-browser-export-check.json`. Browser checks confirmed admin login/role options, public login, safe details, search, district filters, pagination and a downloaded five-row CSV with only approved public fields. Desktop (1440×1000) and mobile (390×844) had no horizontal overflow. Screenshots are in `images/public-portal-desktop.png` and `images/public-portal-mobile.png`. No private cloud account or database was changed by verification. See [PUBLIC_USER_ACCESS.md](PUBLIC_USER_ACCESS.md) for the implementation and schema explanation.
+Earlier checkpoint evidence: `evidence/public-unit-tests.tap` (21 passed), `evidence/public-integration-tests.tap` (50 passed), `evidence/public-build.txt` (passed), `evidence/public-dependency-audit.json` (0 known vulnerabilities) and `evidence/public-browser-export-check.json`. Browser checks confirmed admin login/role options, public login, safe details, search, district filters, pagination and a downloaded five-row CSV with only approved public fields. Desktop (1440×1000) and mobile (390×844) had no horizontal overflow. Screenshots are in `images/public-portal-desktop.png` and `images/public-portal-mobile.png`. No private cloud account or database was changed by verification. See [PUBLIC_USER_ACCESS.md](PUBLIC_USER_ACCESS.md) for the implementation and schema explanation.
 
 ## Administrator access follow-up
 
@@ -26,8 +32,8 @@ Actual administrator creation in the user's cloud database remains a step the us
 
 | Check                                        | Result                                             | Evidence                                                                                                                        |
 | -------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Unit validation/auth/export/deployment suite | 21 passed                                          | `npm test`; `evidence/public-unit-tests.tap`                                                                                    |
-| Isolated CockroachDB/API suite               | 50 passed                                          | `npm run test:integration`; `evidence/public-integration-tests.tap`                                                             |
+| Unit validation/auth/export/deployment suite | 25 passed                                          | `npm test`; `evidence/signup-unit-tests.tap`                                                                                    |
+| Isolated CockroachDB/API suite               | 54 passed                                          | `npm run test:integration`; `evidence/signup-integration-tests.tap`                                                             |
 | TypeScript and frontend production build     | Passed                                             | `npm run build`                                                                                                                 |
 | Installed dependency advisory audit          | 0 known vulnerabilities                            | `npm audit`, at verification time                                                                                               |
 | Standalone built frontend/API smoke check    | Passed                                             | HTML and built script served; unauthorized records rejected; authenticated live schema returned                                 |
@@ -215,9 +221,18 @@ The inventory combines the original successful local output and the Render follo
 
 - Unit: public users have no generic department-resource read/write permissions.
 - Integration: repeatable legacy account-check migration preserves existing rows and foreign keys.
-- Integration: administrator-created public accounts, no visitor signup and no login role spoofing.
+- Integration: administrator-created accounts and no login role spoofing.
 - Integration: registered-only public projections, search, counts, safe district options and details.
 - Integration: private department endpoints, file downloads, schema and all mutations denied.
 - Integration: bounded, typed public filters and pagination; hidden filter keys rejected.
 - Integration: database rejects unknown roles and public accounts linked to private profiles.
-- Integration: encumbrance indicator respects active status and date range without claimant disclosure.
+- Integration: public details exclude encumbrance information regardless of claim changes (supersedes the earlier indicator case).
+
+### Signup additions
+
+- Four unit cases cover normalization, Unicode passwords, malformed/privileged payloads, reserved usernames, bounds and confirmation.
+- Integration: signup creates a hashed read-only account, secret-free audit and working session; duplicates do not replace credentials.
+- Integration: invalid/privileged payloads and foreign-origin/missing-header requests make no account changes.
+- Integration: only authenticated existing administrators can create additional administrator/staff accounts.
+- Integration: signup throttling is independent of sign-in.
+- The earlier claim-indicator case now verifies that claim changes are entirely absent from public responses and that location/claim filter keys are rejected.

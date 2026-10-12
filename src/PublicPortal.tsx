@@ -9,7 +9,6 @@ import {
   Search,
   LogOut,
   ShieldCheck,
-  ArrowDownToLine,
   MapPin,
   ArrowRight,
   ChevronLeft,
@@ -22,7 +21,6 @@ import type {
   PublicProperty,
 } from "../shared/public";
 import { api } from "./api";
-import { csvCell } from "./csv";
 
 const title = (value: string) =>
   value.replace(/_/g, " ").replace(/^./, (s) => s.toUpperCase());
@@ -114,35 +112,6 @@ export default function PublicPortal({
     setPage(1);
     setRevision((v) => v + 1);
   }
-  function exportPage() {
-    if (!records) return;
-    const fields: (keyof PublicProperty)[] = [
-      "survey_no",
-      "property_type",
-      "area",
-      "location",
-      "district_name",
-      "state_name",
-      "office_name",
-      "registration_date",
-      "registration_status",
-      "has_active_encumbrance",
-    ];
-    const text = [
-      fields.map(title),
-      ...records.rows.map((row) => fields.map((key) => row[key])),
-    ]
-      .map((row) => row.map(csvCell).join(","))
-      .join("\r\n");
-    const url = URL.createObjectURL(
-      new Blob([text], { type: "text/csv;charset=utf-8" }),
-    );
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "registered-properties.csv";
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
   return (
     <div className="public-portal">
       <header className="public-topbar">
@@ -177,8 +146,8 @@ export default function PublicPortal({
           <p>
             This account can view records only. For ownership verification,
             certified documents, corrections or services, contact the
-            registration office. Owner identities and private documents are
-            protected.
+            registration office. Locations, encumbrances, owner identities and
+            private documents are protected.
           </p>
         </div>
         <section
@@ -189,16 +158,9 @@ export default function PublicPortal({
             <div>
               <h2 id="property-list-title">Property directory</h2>
               <p>
-                Search by survey number, location, type, district or office.
+                Search by survey number, type, district or registration office.
               </p>
             </div>
-            <button
-              className="button secondary"
-              disabled={loading || !records?.rows.length}
-              onClick={exportPage}
-            >
-              <ArrowDownToLine size={16} /> Export this page
-            </button>
           </div>
           <form className="public-search" onSubmit={submit}>
             <label>
@@ -207,7 +169,7 @@ export default function PublicPortal({
                 maxLength={200}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Survey number or location"
+                placeholder="Survey number, type or district"
               />
             </label>
             <label>
@@ -256,12 +218,12 @@ export default function PublicPortal({
                       <h3>{row.survey_no}</h3>
                       <p className="public-location">
                         <MapPin size={16} />
-                        {row.location}
+                        {row.district_name} · {row.state_name}
                       </p>
                       <dl>
                         <div>
-                          <dt>District</dt>
-                          <dd>{row.district_name}</dd>
+                          <dt>Registration office</dt>
+                          <dd>{row.office_name}</dd>
                         </div>
                         <div>
                           <dt>Area</dt>
@@ -339,18 +301,11 @@ export default function PublicPortal({
             <dl>
               {[
                 ["Property type", title(detail.property_type)],
-                ["Location", detail.location],
                 ["District", `${detail.district_name}, ${detail.state_name}`],
                 ["Registration office", detail.office_name],
                 ["Area", `${detail.area} m²`],
                 ["Registration date", date(detail.registration_date)],
                 ["Registration status", "Registered"],
-                [
-                  "Active encumbrance on record",
-                  detail.has_active_encumbrance
-                    ? "Yes · contact the registration office"
-                    : "None currently indicated",
-                ],
               ].map(([label, value]) => (
                 <div key={label}>
                   <dt>{label}</dt>
@@ -365,8 +320,7 @@ export default function PublicPortal({
           </section>
         )}
         <footer className="public-footer">
-          LandLedger · Public property portal · Accounts issued by the
-          registration department
+          LandLedger · Public property portal · Basic registration information
         </footer>
       </main>
     </div>

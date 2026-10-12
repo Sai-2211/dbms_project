@@ -28,6 +28,7 @@ import { accessible, propertyAccess, redact, scope } from "./access.js";
 import { demand, HttpError } from "./errors.js";
 import { validDate, uuidPattern, validateRecord } from "./validation.js";
 import { publicPortal } from "./public-portal.js";
+import { validatePublicSignup } from "./signup.js";
 import {
   approveTransfer,
   audit,
@@ -92,6 +93,15 @@ const loginLimiter = rateLimit({
   message: { error: "Too many sign-in attempts. Try again later." },
 });
 const dummyHash = hashPassword(randomUUID());
+const signupLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    error: "Too many account creation attempts. Please try again later.",
+  },
+});
 app.get("/api/health", async (_req, res) => {
   try {
     await assertCockroach();
@@ -132,6 +142,31 @@ app.post("/api/auth/login", loginLimiter, async (req, res) => {
   setSession(res, createSession(rows[0].id));
   const { id, role, owner_id, officer_id } = rows[0];
   res.json({ id, username: rows[0].username, role, owner_id, officer_id });
+});
+app.post("/api/auth/signup", signupLimiter, async (req, res) => {
+  const { username, password } = validatePublicSignup(req.body);
+  const actor = await transaction(async (client) => {
+    const row = await insert(client, "users", {
+      username,
+      password_hash: hashPassword(password),
+      role: "public_viewer",
+      owner_id: null,
+      officer_id: null,
+    });
+    const actor = {
+      id: row.id as string,
+      username,
+      role: "public_viewer" as const,
+      owner_id: null,
+      officer_id: null,
+    };
+    await audit(client, actor, "self_register", "users", actor.id, {
+      role: "public_viewer",
+    });
+    return actor;
+  });
+  setSession(res, createSession(actor.id));
+  res.status(201).json(actor);
 });
 app.post("/api/auth/logout", (_req, res) => {
   res.clearCookie("landledger_session", {
