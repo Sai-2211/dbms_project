@@ -42,5 +42,19 @@
     "unreferenced_screenshots": 0,
     "credential_pattern_review": "Only explicit fictional test fixtures and placeholders; no real credentials found in current tracked files"
   },
-  "browser_verification": "Pending hosted UI verification for this release"
+  "browser_verification": {
+    "environment": "Hosted Render app with the authorized administrator session, plus local demonstration",
+    "date": "2026-10-13",
+    "application_commit": "5af8d9c",
+    "passed": [
+      "Property \u2192 ownership \u2192 owner; Back and breadcrumb return",
+      "Related transaction form Cancel returns to property",
+      "Property \u2192 office \u2192 officer lists correct work",
+      "Existing officer link preselects matching role/profile",
+      "New officer form requires full name and office",
+      "ER Inspect attributes opens live columns/keys/constraints; linked table and Back",
+      "Live schema contains 18 tables and 37 foreign-key relationships"
+    ],
+    "hosted_mutations": "None; forms inspected without account/record submission"
+  }
 }
