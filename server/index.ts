@@ -23,6 +23,7 @@ import { demand, HttpError } from "./errors.js";
 import { uuidPattern, validateRecord } from "./validation.js";
 import { publicPortal } from "./public-portal.js";
 import { validatePublicSignup } from "./signup.js";
+import { createAccount, officerAccountDetails } from "./accounts.js";
 import {
   importTrainingDataset,
   trainingDatasetId,
@@ -127,7 +128,7 @@ app.post("/api/auth/login", loginLimiter, async (req, res) => {
     "Enter a username and password.",
   );
   const { rows } = await pool.query(
-    "SELECT * FROM users WHERE username=$1 AND active=true",
+    "SELECT u.* FROM users u LEFT JOIN officers o ON o.id=u.officer_id WHERE u.username=$1 AND u.active=true AND (u.officer_id IS NULL OR o.active=true)",
     [username.trim().toLowerCase()],
   );
   const correct = verifyPassword(password, rows[0]?.password_hash ?? dummyHash);
@@ -206,6 +207,26 @@ app.get("/api/metadata", (req, res) =>
       .filter((r) => canRead(req.actor, r))
       .map((r) => ({
         ...r,
+        ...(r.key === "officers" && req.actor.role === "administrator"
+          ? {
+              fields: [
+                ...r.fields,
+                {
+                  key: "account_username",
+                  label: "Login account",
+                  type: "text",
+                  readOnly: true,
+                },
+                {
+                  key: "account_active",
+                  label: "Login active",
+                  type: "boolean",
+                  readOnly: true,
+                },
+              ],
+              columns: [...r.columns, "account_username"],
+            }
+          : {}),
         canWrite: canWrite(req.actor, r),
         writes: undefined,
         reads: undefined,
@@ -221,8 +242,12 @@ app.get("/api/lookups/:key", async (req, res) => {
     `SELECT r.* FROM ${r.key} r WHERE ${predicate} ORDER BY r.created_at DESC LIMIT 1000`,
     values,
   );
+  const visibleRows =
+    r.key === "officers" && req.actor.role === "administrator"
+      ? await officerAccountDetails(pool, rows)
+      : rows;
   res.json(
-    rows.map((row) => ({
+    visibleRows.map((row) => ({
       id: row.id,
       label:
         r.key === "transactions"
@@ -232,6 +257,7 @@ app.get("/api/lookups/:key", async (req, res) => {
             : String(row[r.label]),
       designation: row.designation,
       active: row.active,
+      has_account: row.has_account,
       district_id: row.district_id,
       office_id: row.office_id,
       property_id: row.property_id,
@@ -345,7 +371,20 @@ app.get("/api/records/:key", async (req, res) => {
     }
     conditions.push(`(${searchParts.join(" OR ")})`);
   }
-  for (const key of ["property_id", "transaction_id", "owner_id"]) {
+  for (const key of [
+    "property_id",
+    "transaction_id",
+    "owner_id",
+    "office_id",
+    "district_id",
+    "officer_id",
+    "verifying_officer_id",
+    "approving_officer_id",
+    "reviewing_officer_id",
+    "issuing_officer_id",
+    "payer_owner_id",
+    "applicant_owner_id",
+  ]) {
     if (req.query[key] && r.fields.some((f) => f.key === key)) {
       demand(uuidPattern.test(String(req.query[key])), "Invalid filter ID.");
       values.push(req.query[key]);
@@ -391,7 +430,10 @@ app.get("/api/records/:key", async (req, res) => {
     values,
   );
   res.json({
-    rows: rows.map((row) => redact(req.actor, r, row)),
+    rows: (r.key === "officers" && req.actor.role === "administrator"
+      ? await officerAccountDetails(pool, rows)
+      : rows
+    ).map((row) => redact(req.actor, r, row)),
     total: Number(count),
     page,
     limit,
@@ -400,19 +442,28 @@ app.get("/api/records/:key", async (req, res) => {
 app.get("/api/records/:key/:id", async (req, res) => {
   const r = getResource(req.params.key);
   validateId(req.params.id);
-  const result = await transaction(async (client) =>
-    redact(
+  const result = await transaction(async (client) => {
+    const row = await accessible(client, req.actor, r, String(req.params.id));
+    return redact(
       req.actor,
       r,
-      await accessible(client, req.actor, r, String(req.params.id)),
-    ),
-  );
+      r.key === "officers" && req.actor.role === "administrator"
+        ? (await officerAccountDetails(client, [row]))[0]
+        : row,
+    );
+  });
   res.json(result);
 });
 app.post("/api/records/:key", async (req, res) => {
   const r = getResource(req.params.key);
   demand(canWrite(req.actor, r), "You cannot create this record.", 403);
   const data = validateRecord(r, req.body?.data);
+  demand(
+    r.key !== "officers",
+    "Create an officer through User accounts so the profile and login stay linked.",
+    409,
+  );
+
   const result = await transaction(async (client) => {
     await validateRelations(client, req.actor, r, data);
     if (r.key === "certificates") {
@@ -508,6 +559,19 @@ app.patch("/api/records/:key/:id", async (req, res) => {
       `UPDATE ${r.key} SET ${keys.map((k, i) => `${k}=$${i + 1}`).join(",")},updated_at=now() WHERE id=$${values.length} RETURNING *`,
       values,
     );
+    if (r.key === "officers" && "active" in data) {
+      const linked = (
+        await client.query(
+          "UPDATE users SET active=$1,updated_at=now() WHERE officer_id=$2 RETURNING id",
+          [rows[0].active, old.id],
+        )
+      ).rows;
+      for (const account of linked)
+        await audit(client, req.actor, "update", "users", account.id, {
+          fields: ["active"],
+          source: "officer_status",
+        });
+    }
     if (r.key === "surveys" && rows[0].survey_status === "completed")
       await updateSurveyBoundary(client, rows[0]);
     await audit(client, req.actor, "update", r.key, old.id, { fields: keys });
@@ -851,87 +915,13 @@ app.get("/api/accounts", async (req, res) => {
   res.json(
     (
       await pool.query(
-        "SELECT id,username,role,owner_id,officer_id,active FROM users ORDER BY created_at DESC",
+        "SELECT u.id,u.username,u.role,u.owner_id,u.officer_id,u.active,o.officer_name,o.office_id,f.office_name FROM users u LEFT JOIN officers o ON o.id=u.officer_id LEFT JOIN offices f ON f.id=o.office_id ORDER BY u.created_at DESC",
       )
     ).rows,
   );
 });
 app.post("/api/accounts", async (req, res) => {
-  demand(
-    req.actor.role === "administrator",
-    "Administrator access is required.",
-    403,
-  );
-  const { username, password, role, owner_id, officer_id } = req.body ?? {};
-  demand(
-    typeof username === "string" && /^[a-zA-Z0-9@._+-]{3,100}$/.test(username),
-    "Enter a valid username (3–100 letters, numbers or email characters).",
-  );
-  demand(
-    typeof password === "string" &&
-      password.length >= 12 &&
-      password.length <= 128,
-    "Passwords must contain 12–128 characters.",
-  );
-  demand(
-    [
-      "administrator",
-      "public_viewer",
-      "owner",
-      "survey_officer",
-      "valuation_officer",
-      "sub_registrar",
-      "bank_verifier",
-      "auditor",
-    ].includes(role),
-    "Select a valid role.",
-  );
-  if (role === "owner") validateId(owner_id);
-  if (
-    [
-      "survey_officer",
-      "valuation_officer",
-      "sub_registrar",
-      "auditor",
-    ].includes(role)
-  )
-    validateId(officer_id);
-  const result = await transaction(async (client) => {
-    if (
-      [
-        "survey_officer",
-        "valuation_officer",
-        "sub_registrar",
-        "auditor",
-      ].includes(role)
-    )
-      demand(
-        (
-          await client.query(
-            "SELECT id FROM officers WHERE id=$1 AND designation=$2 AND active=true",
-            [officer_id, role],
-          )
-        ).rows.length,
-        "The linked officer must be active and have the matching designation.",
-      );
-    const row = await insert(client, "users", {
-      username: username.toLowerCase(),
-      password_hash: hashPassword(password),
-      role,
-      owner_id: role === "owner" ? owner_id : null,
-      officer_id: [
-        "survey_officer",
-        "valuation_officer",
-        "sub_registrar",
-        "auditor",
-      ].includes(role)
-        ? officer_id
-        : null,
-    });
-    await audit(client, req.actor, "create", "users", row.id, { role });
-    delete row.password_hash;
-    return row;
-  });
+  const result = await createAccount(req.actor, req.body);
   res.status(201).json(result);
 });
 

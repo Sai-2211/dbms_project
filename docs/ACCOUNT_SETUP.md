@@ -58,3 +58,7 @@ For a free service, set `UPLOAD_DIR=uploads` and do not attach a paid disk. This
 ## Create accounts after administrator setup
 
 Use **Department / administrator** when signing in. Open the top-right account menu → **User accounts → Add user account**. Select **Public user · read-only** for a general visitor; choose a username and private password of 12–128 characters. The visitor signs in through **Public user** and can view safe registered-property information only. Existing owner and officer accounts use the department area and require their matching linked profiles. Visitors may alternatively select **Public user → Create account** to register a read-only account themselves. See [PUBLIC_SIGNUP.md](PUBLIC_SIGNUP.md).
+
+## Staff profiles and office links
+
+For a Survey officer, Valuation officer, Sub-registrar or Auditor, create the officer profile inside the account form and select its office. The role supplies the designation. Alternatively link an existing historical officer with no login. The officer and account are committed together; duplicate usernames or other failures do not leave an orphan profile. [ROLE_TESTING.md](ROLE_TESTING.md) lists exact permissions and manual cases.

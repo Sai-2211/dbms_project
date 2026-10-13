@@ -80,7 +80,7 @@ export async function authenticate(
   const id = token && readSession(token);
   if (!id) throw new HttpError(401, "Please sign in to continue.");
   const { rows } = await pool.query(
-    "SELECT id,username,role,owner_id,officer_id FROM users WHERE id=$1 AND active=true",
+    "SELECT u.id,u.username,u.role,u.owner_id,u.officer_id FROM users u LEFT JOIN officers o ON o.id=u.officer_id WHERE u.id=$1 AND u.active=true AND (u.officer_id IS NULL OR o.active=true)",
     [id],
   );
   if (!rows[0]) throw new HttpError(401, "Your account is inactive.");

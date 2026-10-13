@@ -51,6 +51,7 @@ import type { Actor, Field, Resource } from "../server/resources";
 import { api } from "./api";
 import { csvCell } from "./csv";
 import PublicPortal from "./PublicPortal";
+import Drawer from "./Drawer";
 const SchemaExplorer = lazy(() => import("./SchemaExplorer"));
 
 type Meta = Resource & { canWrite: boolean };
@@ -60,6 +61,7 @@ type Lookup = {
   label: string;
   designation?: string;
   active?: boolean;
+  has_account?: boolean;
   district_id?: string;
   office_id?: string;
   property_id?: string;
@@ -635,12 +637,20 @@ function Workspace({
   const [route, setRoute] = useState(location.hash.slice(1) || "home");
   const [revision, setRevision] = useState(0);
   const [lookups, setLookups] = useState<Lookups>({});
-  const [drawer, setDrawer] = useState<{
+  type RecordFrame = {
     resource: string;
     row?: Row;
     create?: boolean;
     defaults?: Row;
-  } | null>(null);
+    key: number;
+  };
+  const [drawers, setDrawers] = useState<RecordFrame[]>([]);
+  const nextFrame = useRef(0);
+  const makeFrame = (frame: Omit<RecordFrame, "key">): RecordFrame => ({
+    ...frame,
+    key: ++nextFrame.current,
+  });
+  const [accountDefaults, setAccountDefaults] = useState<Row | undefined>();
   const [utility, setUtility] = useState(false);
   const [accounts, setAccounts] = useState(false);
   const [trainingImport, setTrainingImport] = useState(false);
@@ -712,8 +722,31 @@ function Workspace({
     notify(message);
   }
   const current = resources.find((r) => r.key === route);
-  const openCreate = (key: string, defaults?: Row) =>
-    setDrawer({ resource: key, create: true, defaults });
+  function openAccount(defaults?: Row) {
+    setAccountDefaults(defaults);
+    setAccounts(true);
+  }
+  function openCreate(key: string, defaults?: Row) {
+    if (key === "officers") {
+      openAccount({ role: "survey_officer" });
+      return;
+    }
+    setDrawers([makeFrame({ resource: key, create: true, defaults })]);
+  }
+  function openRecord(key: string, row: Row) {
+    setDrawers([makeFrame({ resource: key, row })]);
+  }
+  function visitRecord(key: string, row?: Row, defaults?: Row) {
+    const frame = makeFrame({ resource: key, row, create: !row, defaults });
+    setDrawers((previous) => {
+      const existing = row
+        ? previous.findIndex((f) => f.resource === key && f.row?.id === row.id)
+        : -1;
+      return existing >= 0
+        ? previous.slice(0, existing + 1)
+        : [...previous, frame];
+    });
+  }
   return (
     <div className="app-shell">
       <header className="header">
@@ -769,7 +802,7 @@ function Workspace({
                 {actor.role === "administrator" && (
                   <button
                     onClick={() => {
-                      setAccounts(true);
+                      openAccount();
                       setUtility(false);
                     }}
                   >
@@ -865,7 +898,7 @@ function Workspace({
             revision={revision}
             navigate={navigate}
             create={openCreate}
-            open={(key, row) => setDrawer({ resource: key, row })}
+            open={openRecord}
           />
         ) : route === "diagram" ? (
           <Suspense fallback={<Loading />}>
@@ -878,7 +911,7 @@ function Workspace({
             revision={revision}
             lookups={lookups}
             onCreate={() => openCreate(current.key)}
-            onOpen={(row) => setDrawer({ resource: current.key, row })}
+            onOpen={(row) => openRecord(current.key, row)}
             onRefresh={() => setRevision((v) => v + 1)}
             navigate={navigate}
           />
@@ -906,24 +939,71 @@ function Workspace({
           Project guide <ArrowUpRight size={13} />
         </button>
       </footer>
-      {drawer && resources.find((r) => r.key === drawer.resource) && (
-        <RecordDrawer
-          key={`${drawer.resource}-${drawer.row?.id || "new"}`}
-          resource={resources.find((r) => r.key === drawer.resource)!}
-          initial={drawer.row}
-          create={drawer.create}
-          defaults={drawer.defaults}
-          actor={actor}
-          lookups={lookups}
-          resources={resources}
-          onClose={() => setDrawer(null)}
-          onChanged={changed}
-          onCreateRelated={openCreate}
-          onOpenRelated={(key, row) => setDrawer({ resource: key, row })}
-        />
-      )}{" "}
+      {drawers.map((frame, index) => {
+        const resource = resources.find((r) => r.key === frame.resource);
+        if (!resource) return null;
+        const parent =
+          index > 0
+            ? resources.find((r) => r.key === drawers[index - 1].resource)
+            : undefined;
+        return (
+          <RecordDrawer
+            key={frame.key}
+            resource={resource}
+            initial={frame.row}
+            create={frame.create}
+            defaults={frame.defaults}
+            actor={actor}
+            lookups={lookups}
+            resources={resources}
+            active={!accounts && index === drawers.length - 1}
+            onClose={() => setDrawers([])}
+            onBack={
+              parent
+                ? () => setDrawers((previous) => previous.slice(0, index))
+                : undefined
+            }
+            backLabel={
+              parent ? `Back to ${parent.singular.toLowerCase()}` : undefined
+            }
+            navigation={
+              <nav className="record-path" aria-label="Record path">
+                {drawers.slice(0, index + 1).map((item, position) => {
+                  const meta = resources.find((r) => r.key === item.resource)!;
+                  return (
+                    <span key={item.key}>
+                      {position > 0 && <span aria-hidden="true"> / </span>}
+                      {position < index ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDrawers((previous) =>
+                              previous.slice(0, position + 1),
+                            )
+                          }
+                        >
+                          {meta.singular}
+                        </button>
+                      ) : (
+                        <span aria-current="page">{meta.singular}</span>
+                      )}
+                    </span>
+                  );
+                })}
+              </nav>
+            }
+            onChanged={changed}
+            onCreateRelated={(key, defaults) =>
+              visitRecord(key, undefined, defaults)
+            }
+            onOpenRelated={(key, row) => visitRecord(key, row)}
+            onOpenAccount={openAccount}
+          />
+        );
+      })}
       {accounts && (
         <AccountsDrawer
+          defaults={accountDefaults}
           lookups={lookups}
           onClose={() => setAccounts(false)}
           onChanged={changed}
@@ -1427,7 +1507,10 @@ function RecordsPage({
           {r.canWrite && (
             <button className="button primary" onClick={onCreate}>
               <Plus size={17} />
-              Add {r.singular.toLowerCase()}
+              Add{" "}
+              {r.key === "officers"
+                ? "officer account"
+                : r.singular.toLowerCase()}
             </button>
           )}
         </div>
@@ -1634,85 +1717,6 @@ function display(value: any, field?: Field, lookups: Lookups = {}) {
   return String(value);
 }
 
-function Drawer({
-  title,
-  subtitle,
-  children,
-  onClose,
-  wide = false,
-}: {
-  title: string;
-  subtitle?: string;
-  children: ReactNode;
-  onClose: () => void;
-  wide?: boolean;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement;
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    ref.current?.focus();
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      if (e.key === "Tab") {
-        const items = ref.current?.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), input, select, textarea, a[href], [tabindex="0"]',
-        );
-        if (!items?.length) return;
-        const first = items[0],
-          last = items[items.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => {
-      document.body.style.overflow = overflow;
-      document.removeEventListener("keydown", handler);
-      previous?.focus();
-    };
-  }, [onClose]);
-  return (
-    <div
-      className="overlay"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className={`drawer ${wide ? "wide" : ""}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        tabIndex={-1}
-        ref={ref}
-      >
-        <div className="drawer-header">
-          <div>
-            <span className="eyebrow">REGISTRY RECORD</span>
-            <h2>{title}</h2>
-            {subtitle && <p>{subtitle}</p>}
-          </div>
-          <button
-            className="icon-button"
-            aria-label="Close panel"
-            onClick={onClose}
-          >
-            <X size={20} />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
 function FieldInput({
   field: f,
   value,
@@ -1849,6 +1853,11 @@ function RecordDrawer({
   onChanged,
   onCreateRelated,
   onOpenRelated,
+  active,
+  onBack,
+  backLabel,
+  navigation,
+  onOpenAccount,
 }: {
   resource: Meta;
   initial?: Row;
@@ -1861,6 +1870,11 @@ function RecordDrawer({
   onChanged: (s?: string) => void;
   onCreateRelated: (k: string, d?: Row) => void;
   onOpenRelated: (k: string, r: Row) => void;
+  active: boolean;
+  onBack?: () => void;
+  backLabel?: string;
+  navigation?: ReactNode;
+  onOpenAccount: (defaults?: Row) => void;
 }) {
   const [row, setRow] = useState<Row | undefined>(initial);
   const [editing, setEditing] = useState(!!create);
@@ -1874,7 +1888,7 @@ function RecordDrawer({
   const [detailLoading, setDetailLoading] = useState(!create);
   useEffect(() => {
     let alive = true;
-    if (!row?.id) return;
+    if (!active || !row?.id) return;
     api<Row>(`/records/${r.key}/${row.id}`)
       .then((value) => {
         if (alive) {
@@ -1897,10 +1911,10 @@ function RecordDrawer({
     return () => {
       alive = false;
     };
-  }, [r.key, row?.id, refresh]);
+  }, [r.key, row?.id, refresh, active]);
   useEffect(() => {
     let alive = true;
-    if (!row?.id) return;
+    if (!active || !row?.id) return;
     const keys =
       r.key === "properties"
         ? [
@@ -1918,18 +1932,55 @@ function RecordDrawer({
         : r.key === "transactions"
           ? ["transaction_parties", "documents"]
           : r.key === "owners"
-            ? ["ownerships"]
-            : [];
+            ? [
+                "ownerships",
+                "tax_payments",
+                "applications",
+                "transaction_parties",
+              ]
+            : r.key === "offices"
+              ? ["officers", "properties", "transactions"]
+              : r.key === "districts"
+                ? ["offices", "properties"]
+                : r.key === "officers"
+                  ? [
+                      "surveys",
+                      "valuations",
+                      "transactions",
+                      "documents",
+                      "mutations",
+                      "applications",
+                      "certificates",
+                    ]
+                  : [];
     Promise.all(
       keys
         .filter((key) => resources.some((x) => x.key === key))
         .map(async (key) => {
           const filter =
-            r.key === "transactions"
-              ? "transaction_id"
-              : r.key === "owners"
-                ? "owner_id"
-                : "property_id";
+            r.key === "offices"
+              ? "office_id"
+              : r.key === "districts"
+                ? "district_id"
+                : r.key === "officers"
+                  ? (
+                      {
+                        documents: "verifying_officer_id",
+                        transactions: "approving_officer_id",
+                        mutations: "approving_officer_id",
+                        applications: "reviewing_officer_id",
+                        certificates: "issuing_officer_id",
+                      } as Record<string, string>
+                    )[key] || "officer_id"
+                  : r.key === "owners" && key === "tax_payments"
+                    ? "payer_owner_id"
+                    : r.key === "owners" && key === "applications"
+                      ? "applicant_owner_id"
+                      : r.key === "transactions"
+                        ? "transaction_id"
+                        : r.key === "owners"
+                          ? "owner_id"
+                          : "property_id";
           try {
             return [
               key,
@@ -1949,7 +2000,7 @@ function RecordDrawer({
     return () => {
       alive = false;
     };
-  }, [r.key, row?.id, refresh, resources]);
+  }, [r.key, row?.id, refresh, resources, active]);
   const finalized =
     row &&
     ((r.key === "transactions" && row.status !== "pending") ||
@@ -2004,7 +2055,7 @@ function RecordDrawer({
       setRow(value);
       setEditing(false);
       onChanged();
-      onClose();
+      (onBack || onClose)();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -2052,7 +2103,7 @@ function RecordDrawer({
     try {
       await api(`/records/${r.key}/${row!.id}`, { method: "DELETE" });
       onChanged("Unfinalized record removed.");
-      onClose();
+      (onBack || onClose)();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -2075,6 +2126,10 @@ function RecordDrawer({
             : undefined
       }
       onClose={onClose}
+      active={active}
+      onBack={onBack}
+      backLabel={backLabel}
+      navigation={navigation}
       wide
     >
       <div className="drawer-body">
@@ -2203,7 +2258,22 @@ function RecordDrawer({
                     >
                       <dt>{f.label}</dt>
                       <dd className={f.type === "json" ? "json-value" : ""}>
-                        {display(row[f.key], f, lookups)}
+                        {f.type === "reference" &&
+                        row[f.key] &&
+                        resources.some((meta) => meta.key === f.reference) ? (
+                          <button
+                            type="button"
+                            className="text-button record-reference"
+                            onClick={() =>
+                              onOpenRelated(f.reference!, { id: row[f.key] })
+                            }
+                          >
+                            {display(row[f.key], f, lookups)}
+                            <ArrowUpRight size={14} />
+                          </button>
+                        ) : (
+                          display(row[f.key], f, lookups)
+                        )}
                       </dd>
                     </div>
                   ))}
@@ -2212,6 +2282,25 @@ function RecordDrawer({
                   <dd>{date(row.created_at || row.occurred_at)}</dd>
                 </div>
               </dl>
+              {r.key === "officers" &&
+                actor.role === "administrator" &&
+                !row.account_username && (
+                  <section className="detail-section">
+                    <p>This officer record has no login account yet.</p>
+                    <button
+                      className="button primary small"
+                      onClick={() =>
+                        onOpenAccount({
+                          role: row.designation,
+                          officer_id: row.id,
+                          profile_mode: "existing",
+                        })
+                      }
+                    >
+                      Create linked officer account
+                    </button>
+                  </section>
+                )}
               {r.key === "documents" && (
                 <section className="detail-section">
                   <h4>Digital copy</h4>
@@ -2471,10 +2560,10 @@ function RecordDrawer({
                   setEditing(false);
                   setError("");
                 }
-              : onClose
+              : onBack || onClose
           }
         >
-          {editing ? "Cancel" : "Close record"}
+          {editing ? "Cancel" : onBack ? backLabel : "Close record"}
         </button>
         {editing && (
           <button form="record-form" className="button primary" disabled={busy}>
@@ -2628,23 +2717,31 @@ function TrainingImportDrawer({
 }
 
 function AccountsDrawer({
+  defaults,
   lookups,
   onClose,
   onChanged,
 }: {
+  defaults?: Row;
   lookups: Lookups;
   onClose: () => void;
   onChanged: (s?: string) => void;
 }) {
   const [revision, setRevision] = useState(0);
   const accounts = useLoad<Row[]>("/accounts", revision);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(!!defaults);
   const [data, setData] = useState<Row>({
     username: "",
     password: "",
     role: "public_viewer",
     owner_id: "",
     officer_id: "",
+    profile_mode: "new",
+    officer_name: "",
+    office_id: "",
+    email: "",
+    phone: "",
+    ...defaults,
   });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -2653,7 +2750,31 @@ function AccountsDrawer({
     setBusy(true);
     setError("");
     try {
-      await api("/accounts", { method: "POST", body: JSON.stringify(data) });
+      const staff = [
+        "survey_officer",
+        "valuation_officer",
+        "sub_registrar",
+        "auditor",
+      ].includes(data.role);
+      const payload = {
+        username: data.username,
+        password: data.password,
+        role: data.role,
+        ...(data.role === "owner" ? { owner_id: data.owner_id } : {}),
+        ...(staff
+          ? data.profile_mode === "existing"
+            ? { officer_id: data.officer_id }
+            : {
+                officer: {
+                  officer_name: data.officer_name,
+                  office_id: data.office_id,
+                  email: data.email,
+                  phone: data.phone,
+                },
+              }
+          : {}),
+      };
+      await api("/accounts", { method: "POST", body: JSON.stringify(payload) });
       setAdding(false);
       setRevision((v) => v + 1);
       onChanged("User account created.");
@@ -2663,6 +2784,11 @@ function AccountsDrawer({
         role: "public_viewer",
         owner_id: "",
         officer_id: "",
+        profile_mode: "new",
+        officer_name: "",
+        office_id: "",
+        email: "",
+        phone: "",
       });
     } catch (e) {
       setError((e as Error).message);
@@ -2708,6 +2834,7 @@ function AccountsDrawer({
                     role: e.target.value,
                     owner_id: "",
                     officer_id: "",
+                    profile_mode: "new",
                   })
                 }
               >
@@ -2750,21 +2877,112 @@ function AccountsDrawer({
               "sub_registrar",
               "auditor",
             ].includes(data.role) && (
-              <FieldInput
-                field={{
-                  key: "officer_id",
-                  label: "Linked officer",
-                  type: "reference",
-                  reference: "officers",
-                  designation: data.role,
-                  required: true,
-                }}
-                value={data.officer_id}
-                lookups={lookups}
-                data={data}
-                onChange={(v) => setData({ ...data, officer_id: v })}
-              />
-            )}{" "}
+              <>
+                <label className="field">
+                  <span>Officer profile</span>
+                  <select
+                    value={data.profile_mode}
+                    onChange={(e) =>
+                      setData({
+                        ...data,
+                        profile_mode: e.target.value,
+                        officer_id: "",
+                      })
+                    }
+                  >
+                    <option value="new">
+                      Create officer with this account
+                    </option>
+                    <option value="existing">
+                      Link an existing officer without a login
+                    </option>
+                  </select>
+                </label>
+                {data.profile_mode === "existing" ? (
+                  <>
+                    <FieldInput
+                      field={{
+                        key: "officer_id",
+                        label: "Linked officer",
+                        type: "reference",
+                        reference: "officers",
+                        designation: data.role,
+                        required: true,
+                      }}
+                      value={data.officer_id}
+                      lookups={{
+                        ...lookups,
+                        officers: (lookups.officers || []).filter(
+                          (o) => !o.has_account,
+                        ),
+                      }}
+                      data={data}
+                      onChange={(v) => setData({ ...data, officer_id: v })}
+                    />
+                    <p className="form-tip">
+                      The existing officer's designation and office are
+                      retained. Officers already linked to a login are excluded.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <FieldInput
+                      field={{
+                        key: "officer_name",
+                        label: "Officer full name",
+                        type: "text",
+                        required: true,
+                      }}
+                      value={data.officer_name}
+                      lookups={lookups}
+                      data={data}
+                      onChange={(v) => setData({ ...data, officer_name: v })}
+                    />
+                    <FieldInput
+                      field={{
+                        key: "office_id",
+                        label: "Office",
+                        type: "reference",
+                        reference: "offices",
+                        required: true,
+                      }}
+                      value={data.office_id}
+                      lookups={lookups}
+                      data={data}
+                      onChange={(v) => setData({ ...data, office_id: v })}
+                    />
+                    <FieldInput
+                      field={{
+                        key: "email",
+                        label: "Officer email",
+                        type: "email",
+                        required: false,
+                      }}
+                      value={data.email}
+                      lookups={lookups}
+                      data={data}
+                      onChange={(v) => setData({ ...data, email: v })}
+                    />
+                    <FieldInput
+                      field={{
+                        key: "phone",
+                        label: "Officer phone",
+                        type: "text",
+                        required: false,
+                      }}
+                      value={data.phone}
+                      lookups={lookups}
+                      data={data}
+                      onChange={(v) => setData({ ...data, phone: v })}
+                    />
+                    <p className="form-tip">
+                      The officer's designation follows the selected role.
+                      Profile, office link and login are saved together.
+                    </p>
+                  </>
+                )}
+              </>
+            )}
             {error && (
               <p className="form-error" role="alert">
                 {error}
@@ -2807,6 +3025,11 @@ function AccountsDrawer({
                           ? "Public user · read-only"
                           : nice(a.role)}
                       </small>
+                      {a.officer_name && (
+                        <small>
+                          {a.officer_name} · {a.office_name}
+                        </small>
+                      )}
                     </div>
                     <Badge value={a.active ? "active" : "inactive"} />
                   </div>

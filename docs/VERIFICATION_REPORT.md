@@ -1,6 +1,6 @@
 # Verification and security
 
-Verified 12 October 2026 using Node.js 22.19.0 and a real local CockroachDB 25.4.0 instance. **25 unit tests and 56 integration tests passed**, with no failures or skipped tests. The TypeScript/Vite production build passed. The latest results are summarized in [evidence/verification-summary.json](evidence/verification-summary.json); historical terminal logs are available in Git history rather than duplicated in the working tree.
+Verified 12 October 2026 using Node.js 22.19.0 and a real local CockroachDB 25.4.0 instance. **25 unit tests and 58 integration tests passed**, with no failures or skipped tests. The TypeScript/Vite production build passed. The latest results are summarized in [evidence/verification-summary.json](evidence/verification-summary.json); historical terminal logs are available in Git history rather than duplicated in the working tree.
 
 ## Reproduce the checks
 
@@ -61,3 +61,7 @@ On 12 October 2026, the authorized hosted training import created **138 registry
 These are regression cases and focused UI/source checks, not exhaustive fuzzing, a load test or security certification. Local checks use a single database node. Multi-node failover, coordinated backup recovery, external government/deed verification, real payment/lending workflows and malware scanning have not been demonstrated.
 
 Audit rows remain editable to privileged SQL administrators. Logout clears a cookie but does not individually revoke an already issued stolen token; account deactivation and expiry still apply. Rate-limit counters are process-local. File signatures do not fully parse documents, and arbitrary uploaded files on Render Free remain temporary. Only the exact versioned training PDF has recovery support. Survey numbers are not globally unique physical parcel identifiers in the approved model.
+
+## Record navigation, ER inspection and staff synchronization
+
+Nested details use a preserved panel stack, breadcrumbs and Back; authorized reference fields open related records, and office/district/officer views list related work. ER attribute buttons open the live schema inspector directly, including on narrow screens. Additional integration checks cover atomic officer/account creation, office/designation links, duplicate rollback, single-profile login assignment under concurrent requests and synchronized deactivation/session rejection. See [ROLE_TESTING.md](ROLE_TESTING.md).

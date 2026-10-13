@@ -40,7 +40,7 @@ The Related transaction dropdown shows a type and short UUID. Write the label be
 
 ## 1. Districts, offices, owners and officers
 
-Enter these first while signed in as an administrator. If Chennai / Tamil Nadu or Thanjavur / Tamil Nadu already exists, select that existing district instead of creating a duplicate. Create the training offices below; they are separate from the seeded Central Registry offices.
+Enter these first while signed in as an administrator. For officer blocks, use User accounts → Add user account → Create officer with this account: select the Designation as the account Role, use Full name for Officer full name, choose the Office, and privately choose a username/password. Active is set automatically. Do not add standalone officer records. If the dataset was imported, link its existing officer instead of duplicating it. If Chennai / Tamil Nadu or Thanjavur / Tamil Nadu already exists, select that existing district instead of creating a duplicate. Create the training offices below; they are separate from the seeded Central Registry offices.
 
 ### D-CH — District
 
