@@ -63,3 +63,7 @@ Use **Department / administrator** when signing in. Open the top-right account m
 ## Officer links and account deletion
 
 All new staff accounts, including bank verifiers, require an active officer profile with the matching designation and office. User accounts shows existing profile/office links and officers without accounts. Use **Link profile** to repair an active account without replacing its credentials. **Delete account** revokes access immediately; referenced audit identities remain inactive so history stays connected. See [Role access and workflows](ROLE_ACCESS.md).
+
+## Staff profiles and office links
+
+For a Survey officer, Valuation officer, Sub-registrar, Bank verifier or Auditor, create the officer profile inside the account form and select its office. The role supplies the designation. Alternatively link an existing historical officer with no login. The officer and account are committed together; duplicate usernames or other failures do not leave an orphan profile. [ROLE_TESTING.md](ROLE_TESTING.md) lists exact permissions and manual cases.

@@ -926,6 +926,31 @@ async function create(
   cookie: string,
   extra: Record<string, unknown> = {},
 ) {
+  if (key === "officers") {
+    const officer = data as Record<string, any>;
+    const account = await request("/accounts", cookie, "POST", {
+      username: `qa-officer-${randomUUID()}`,
+      password,
+      role: officer.designation,
+      officer: {
+        officer_name: officer.officer_name,
+        office_id: officer.office_id,
+        email: officer.email,
+        phone: officer.phone,
+      },
+    });
+    assert.equal(account.status, 201, JSON.stringify(account.body));
+    if (officer.active === false)
+      await request(
+        `/records/officers/${account.body.officer_id}`,
+        cookie,
+        "PATCH",
+        { data: { active: false } },
+      );
+    return (
+      await request(`/records/officers/${account.body.officer_id}`, cookie)
+    ).body;
+  }
   const result = await request(`/records/${key}`, cookie, "POST", {
     data,
     ...extra,
@@ -2035,15 +2060,13 @@ test("account creation validates passwords, roles and required linked profiles",
       JSON.stringify(input),
     );
   }
-  const bankProfile = await create(
-    "officers",
-    {
+  const bankProfile = await transaction((client) =>
+    insert(client, "officers", {
       officer_name: "QA Bank",
       designation: "bank_verifier",
       office_id: office.id,
       active: true,
-    },
-    cookie,
+    }),
   );
   const valid = await request("/accounts", cookie, "POST", {
     officer_id: bankProfile.id,
@@ -3392,15 +3415,13 @@ test("department allowlists, office scopes and assigned survey records cover lis
 
 test("account links are unique and repairable; account deletion revokes old sessions and retains audit references", async () => {
   const admin = await login("test-admin");
-  const profile = await create(
-    "officers",
-    {
+  const profile = await transaction((client) =>
+    insert(client, "officers", {
       officer_name: "Linked Bank",
       designation: "bank_verifier",
       office_id: office.id,
       active: true,
-    },
-    admin,
+    }),
   );
   const created = await request("/accounts", admin, "POST", {
     username: `bank-${randomUUID()}`,
@@ -3494,6 +3515,13 @@ test("account links are unique and repairable; account deletion revokes old sess
   const retained = await request(`/accounts/${legacy.id}`, admin, "DELETE");
   assert.equal(retained.status, 200);
   assert.equal(retained.body.history_retained, true);
+  await request(`/records/officers/${profile.id}`, admin, "PATCH", {
+    data: { active: false },
+  });
+  await request(`/records/officers/${profile.id}`, admin, "PATCH", {
+    data: { active: true },
+  });
+
   assert.equal((await request("/auth/me", legacySession)).status, 401);
   assert.equal(
     (await pool.query("SELECT active FROM users WHERE id=$1", [legacy.id]))
@@ -3513,15 +3541,13 @@ test("account links are unique and repairable; account deletion revokes old sess
 
 test("inactive officer profiles revoke existing sessions and prevent new sign-ins", async () => {
   const cookie = await login("test-admin");
-  const profile = await create(
-    "officers",
-    {
+  const profile = await transaction((client) =>
+    insert(client, "officers", {
       officer_name: "Temporary officer",
       designation: "survey_officer",
       office_id: office.id,
       active: true,
-    },
-    cookie,
+    }),
   );
   const username = `temporary-${randomUUID()}`;
   assert.equal(
@@ -3548,7 +3574,224 @@ test("inactive officer profiles revoke existing sessions and prevent new sign-in
   assert.equal(
     (await request("/auth/login", undefined, "POST", { username, password }))
       .status,
+    401,
+  );
+});
+
+test("officer accounts create matching profiles atomically, expose office links and synchronize deactivation", async () => {
+  const cookie = await login("test-admin");
+  const direct = await request("/records/officers", cookie, "POST", {
+    data: {
+      officer_name: "Orphan profile",
+      designation: "survey_officer",
+      office_id: office.id,
+      active: true,
+    },
+  });
+  assert.equal(direct.status, 409);
+  const created = await request("/accounts", cookie, "POST", {
+    username: "linked-surveyor-qa",
+    password,
+    role: "survey_officer",
+    officer: {
+      officer_name: "Linked Surveyor QA",
+      office_id: office.id,
+      email: "survey-qa@example.test",
+    },
+  });
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  const profile = (
+    await request(`/records/officers/${created.body.officer_id}`, cookie)
+  ).body;
+  assert.equal(profile.designation, "survey_officer");
+  assert.equal(profile.office_id, office.id);
+  assert.equal(profile.account_username, "linked-surveyor-qa");
+  assert.equal(profile.account_active, true);
+  const account = (await request("/accounts", cookie)).body.find(
+    (a: any) => a.id === created.body.id,
+  );
+  assert.equal(account.officer_name, "Linked Surveyor QA");
+  assert.equal(account.office_name, office.office_name);
+  const before = Number(
+    (await pool.query("SELECT count(*) AS count FROM officers")).rows[0].count,
+  );
+  const duplicate = await request("/accounts", cookie, "POST", {
+    username: "linked-surveyor-qa",
+    password,
+    role: "survey_officer",
+    officer: { officer_name: "Must roll back", office_id: office.id },
+  });
+  assert.equal(duplicate.status, 409);
+  assert.equal(
+    Number(
+      (await pool.query("SELECT count(*) AS count FROM officers")).rows[0]
+        .count,
+    ),
+    before,
+  );
+  assert.equal(
+    (
+      await request("/accounts", cookie, "POST", {
+        username: "second-login-qa",
+        password,
+        role: "survey_officer",
+        officer_id: created.body.officer_id,
+      })
+    ).status,
+    409,
+  );
+  const staffCookie = await login("linked-surveyor-qa");
+  const parcel = await fixture();
+  const work = await create(
+    "surveys",
+    {
+      property_id: parcel.property.id,
+      officer_id: profile.id,
+      survey_no: randomUUID(),
+      survey_date: "2025-02-01",
+      survey_area: "120",
+      boundary_details: "Linked office work",
+      survey_status: "scheduled",
+    },
+    cookie,
+  );
+  assert.equal(
+    (
+      await request(`/records/surveys/${work.id}`, staffCookie, "PATCH", {
+        data: { survey_area: "121" },
+      })
+    ).status,
+    200,
+  );
+  const related = await request(
+    `/records/surveys?officer_id=${profile.id}`,
+    cookie,
+  );
+  assert.equal(related.body.total, 1);
+  assert.equal(related.body.rows[0].id, work.id);
+  assert.equal(
+    (await request("/records/surveys?officer_id=invalid", cookie)).status,
+    400,
+  );
+  assert.equal(
+    (
+      await request(
+        `/records/surveys?officer_id=${profile.id}`,
+        await login("test-owner"),
+      )
+    ).body.total,
+    0,
+  );
+  const officeProfiles = await request(
+    `/records/officers?office_id=${office.id}&limit=100`,
+    cookie,
+  );
+  assert(officeProfiles.body.rows.every((p: any) => p.office_id === office.id));
+  assert.equal(
+    (
+      await request(`/records/officers/${profile.id}`, cookie, "PATCH", {
+        data: { active: false },
+      })
+    ).status,
+    200,
+  );
+  assert.equal((await request("/auth/me", staffCookie)).status, 401);
+  assert.equal(
+    (
+      await pool.query("SELECT active FROM users WHERE id=$1", [
+        created.body.id,
+      ])
+    ).rows[0].active,
+    false,
+  );
+  await request(`/records/officers/${profile.id}`, cookie, "PATCH", {
+    data: { active: true },
+  });
+  assert.equal((await request("/auth/me", staffCookie)).status, 200);
+  for (const role of ["valuation_officer", "sub_registrar", "auditor"]) {
+    const result = await request("/accounts", cookie, "POST", {
+      username: `linked-${role}-qa`,
+      password,
+      role,
+      officer: { officer_name: `Linked ${role} QA`, office_id: office.id },
+    });
+    assert.equal(result.status, 201);
+    assert.equal(
+      (
+        await pool.query("SELECT designation FROM officers WHERE id=$1", [
+          result.body.officer_id,
+        ])
+      ).rows[0].designation,
+      role,
+    );
+  }
+  assert.equal(
+    (
+      await request("/accounts", cookie, "POST", {
+        username: "bad-profile-qa",
+        password,
+        role: "survey_officer",
+        officer: {
+          officer_name: "Wrong designation",
+          office_id: office.id,
+          designation: "sub_registrar",
+        },
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await request("/accounts", await login("test-owner"), "POST", {
+        username: "forged-profile-qa",
+        password,
+        role: "survey_officer",
+        officer: { officer_name: "Unauthorized", office_id: office.id },
+      })
+    ).status,
     403,
+  );
+});
+
+test("legacy officer linking retains work history and concurrent requests cannot assign two logins", async () => {
+  const cookie = await login("test-admin");
+  const legacy = await transaction((client) =>
+    insert(client, "officers", {
+      officer_name: "Legacy Officer QA",
+      designation: "auditor",
+      office_id: office.id,
+      active: true,
+    }),
+  );
+  const replies = await Promise.all(
+    ["legacy-login-a", "legacy-login-b"].map((username) =>
+      request("/accounts", cookie, "POST", {
+        username,
+        password,
+        role: "auditor",
+        officer_id: legacy.id,
+      }),
+    ),
+  );
+  assert.deepEqual(replies.map((r) => r.status).sort(), [201, 409]);
+  assert.equal(
+    Number(
+      (
+        await pool.query(
+          "SELECT count(*) AS count FROM users WHERE officer_id=$1",
+          [legacy.id],
+        )
+      ).rows[0].count,
+    ),
+    1,
+  );
+  assert.equal(
+    (
+      await pool.query("SELECT officer_name FROM officers WHERE id=$1", [
+        legacy.id,
+      ])
+    ).rows[0].officer_name,
+    "Legacy Officer QA",
   );
 });
 

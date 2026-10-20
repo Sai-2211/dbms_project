@@ -1,6 +1,6 @@
 # Verification and security
 
-Verified 12 October 2026 using Node.js 22.19.0 and a real local CockroachDB 25.4.0 instance. **25 unit tests and 56 integration tests passed**, with no failures or skipped tests. The TypeScript/Vite production build passed. The latest results are summarized in [evidence/verification-summary.json](evidence/verification-summary.json); historical terminal logs are available in Git history rather than duplicated in the working tree.
+Verified 20 October 2026 using Node.js v22.19.0 and a real local CockroachDB 25.4.0 instance. **25 unit tests and 62 integration tests passed**, with no failures or skipped tests. The TypeScript/Vite production build passed. The latest results are summarized in [evidence/verification-summary.json](evidence/verification-summary.json); historical checkpoints remain in Git history.
 
 ## Reproduce the checks
 
@@ -65,4 +65,10 @@ Audit rows remain editable to privileged SQL administrators. Logout clears a coo
 
 ## Officer access update — 20 October 2026
 
-The production build, 25 unit tests and 60 isolated CockroachDB/API integration tests pass. Expanded coverage checks office scopes across lists, direct IDs, lookups, search and dashboard aggregates; assigned survey access; read-only bank/audit roles; ownership/registration dependencies; unique and repairable profile links; deleted-account session revocation; audit preservation; inactive officer sessions; and repeatable account provisioning that preserves credentials and contacts. Browser checks verified a survey work queue and valuation creation defaults against hosted records without submitting registry changes. Hosted account updates were verified separately; these database changes do not themselves deploy the new application code.
+The production build, 25 unit tests and 62 isolated CockroachDB/API integration tests pass. Expanded coverage checks office scopes across lists, direct IDs, lookups, search and dashboard aggregates; assigned survey access; read-only bank/audit roles; ownership/registration dependencies; unique and repairable profile links; deleted-account session revocation; audit preservation; inactive officer sessions; and repeatable account provisioning that preserves credentials and contacts. Browser checks verified a survey work queue and valuation creation defaults against hosted records without submitting registry changes. Hosted account updates were verified separately; these database changes do not themselves deploy the new application code.
+
+## Record navigation, ER inspection and staff synchronization
+
+Nested details use a preserved panel stack, breadcrumbs and Back; authorized reference fields open related records, and office/district/officer views list related work. ER attribute buttons open the live schema inspector directly, including on narrow screens. Additional integration checks cover atomic officer/account creation, office/designation links, duplicate rollback, single-profile login assignment under concurrent requests and synchronized deactivation/session rejection. See [ROLE_TESTING.md](ROLE_TESTING.md).
+
+On 13 October 2026, application commit `5af8d9c` was verified after Render deployment using the authorized administrator session. Property → ownership → owner navigation, breadcrumb return, related-entry Cancel, office → officer work listings, new officer-account fields and existing-profile preselection passed. The visible ER inspector displayed live attributes and supported linked-table Back navigation; the catalog contained 18 tables and 37 foreign keys. Hosted records and credentials were not changed during these checks.

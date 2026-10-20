@@ -80,7 +80,7 @@ Choose **Department / administrator** for these accounts. The seed creates 24 fi
 
 Use **Department / administrator** for administrator, owner and staff accounts; use **Public user** for read-only directory accounts. Permissions always come from the database role, not the selected login button. Password fields have Show/Hide controls and are hidden initially.
 
-Administrators open their username menu → **User accounts** to list accounts and create additional administrator/public/owner/staff accounts. Owner and officer accounts require the matching profile. Administrators can also repair profile links and delete login access. Audit-linked identities are retained as inactive history; accounts without audit references are removed. Role editing, reactivation and in-app password resets are not available. [Role access and workflows](docs/ROLE_ACCESS.md) documents office scopes, officer duties and dashboards.
+Administrators open their username menu → **User accounts** to list accounts and create additional administrator/public/owner/staff accounts. Owner accounts require their matching profile. Staff accounts can create an officer profile and office link atomically, or link an existing officer without an active login. Administrators can also repair profile links and delete login access. Audit-linked identities are retained as inactive history; accounts without audit references are removed. Role editing, reactivation and in-app password resets are not available. [Role access and workflows](docs/ROLE_ACCESS.md) documents office scopes, officer duties and dashboards.
 
 Visitors can choose **Public user → Create account**. Signup creates only `public_viewer` accounts, validates confirmation and rejects role/profile overrides. **All usernames ending in `@landledger.local` are reserved for administrator-created or demo accounts**; those existing accounts can sign in normally. Use another username or your own email for public signup.
 
@@ -137,7 +137,7 @@ npm run build
 npm audit --audit-level=high
 ```
 
-The latest verified suites have **25 unit tests and 60 CockroachDB/API integration tests**. Integration tests create and remove only their own disposable `landledger_test_*` databases, using a development SQL user with database-creation permission. Use a local/test CockroachDB instance for these checks. Tests cover relationships, rollback, conflicting transfers, ownership shares, uploads, role/privacy controls, injection inputs, migration, administrator recovery and training import. GitHub Actions repeats unit, integration, build and dependency checks on pushes and pull requests. TypeScript also rejects unused imports and parameters.
+The latest verified suites have **25 unit tests and 62 CockroachDB/API integration tests**. Integration tests create and remove only their own disposable `landledger_test_*` databases, using a development SQL user with database-creation permission. Use a local/test CockroachDB instance for these checks. Tests cover relationships, rollback, conflicting transfers, ownership shares, uploads, role/privacy controls, injection inputs, migration, administrator recovery and training import. GitHub Actions repeats unit, integration, build and dependency checks on pushes and pull requests. TypeScript also rejects unused imports and parameters.
 
 The [verification report](docs/VERIFICATION_REPORT.md) describes coverage and practical limits. The app displays an error when CockroachDB is unavailable; it never substitutes another database or browser storage.
 

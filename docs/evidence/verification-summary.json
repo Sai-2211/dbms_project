@@ -1,5 +1,5 @@
 {
-  "verified_on": "2026-10-12",
+  "verified_on": "2026-10-20",
   "runtime": {
     "node": "v22.19.0",
     "database": "CockroachDB 25.4.0",
@@ -12,8 +12,8 @@
     "skipped": 0
   },
   "integration": {
-    "tests": 56,
-    "passed": 56,
+    "tests": 62,
+    "passed": 62,
     "failed": 0,
     "skipped": 0
   },
@@ -27,7 +27,12 @@
     "critical": 0,
     "total": 0
   },
-  "repository_review": {
+  "runtime_assets_preserved": {
+    "training_dataset_sha256": "4ebb35224ef2903d07758cbb546e6843c64e469b327608eb0d02fe470a255b21",
+    "sample_pdf_sha256": "823e7af77410435744e3137de2d19437aad1bb8db26221f23963d86c7c6d0d53"
+  },
+  "scope": "Office-scoped role access, assigned survey work, private owner redaction, administrator account deletion, atomic officer/account creation, profile repair and idempotent provisioning. The hosted profile checks and requested accounts were updated while preserving all existing usernames and password hashes. Application deployment is a separate step.",
+  "repository_cleanup_checkpoint": {
     "tracked_files_before": 97,
     "tracked_files_after": 65,
     "redundant_files_removed": 32,
@@ -37,9 +42,29 @@
     "unreferenced_screenshots": 0,
     "credential_pattern_review": "Only explicit fictional test fixtures and placeholders; no real credentials found in current tracked files"
   },
-  "runtime_assets_preserved": {
-    "training_dataset_sha256": "4ebb35224ef2903d07758cbb546e6843c64e469b327608eb0d02fe470a255b21",
-    "sample_pdf_sha256": "823e7af77410435744e3137de2d19437aad1bb8db26221f23963d86c7c6d0d53"
+  "browser_verification": {
+    "environment": "Hosted Render app with the authorized administrator session, plus local demonstration",
+    "date": "2026-10-13",
+    "application_commit": "5af8d9c",
+    "passed": [
+      "Property \u2192 ownership \u2192 owner; Back and breadcrumb return",
+      "Related transaction form Cancel returns to property",
+      "Property \u2192 office \u2192 officer lists correct work",
+      "Existing officer link preselects matching role/profile",
+      "New officer form requires full name and office",
+      "ER Inspect attributes opens live columns/keys/constraints; linked table and Back",
+      "Live schema contains 18 tables and 37 foreign-key relationships"
+    ],
+    "hosted_mutations": "None; forms inspected without account/record submission"
   },
-  "scope": "No application schema, hosted registry records or user credentials changed; integration checks use disposable test databases."
+  "dependency_advisories_verified_on": "2026-10-13",
+  "officer_scope_verification": {
+    "verified_on": "2026-10-20",
+    "unit_tests_passed": 25,
+    "integration_tests_passed": 62,
+    "production_build": "passed",
+    "hosted_officer_accounts_complete": true,
+    "existing_credentials_preserved": true,
+    "deleted_logins_stay_disabled_after_officer_reactivation": true
+  }
 }

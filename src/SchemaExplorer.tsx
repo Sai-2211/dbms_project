@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -23,9 +23,13 @@ import {
 } from "lucide-react";
 import "@xyflow/react/dist/style.css";
 import { api } from "./api";
+import Drawer from "./Drawer";
 import type { DatabaseSchema, SchemaTable } from "../shared/schema";
 
-type TableNode = Node<{ table: SchemaTable; dimmed: boolean }, "table">;
+type TableNode = Node<
+  { table: SchemaTable; dimmed: boolean; inspect: (name: string) => void },
+  "table"
+>;
 const order = [
   "districts",
   "offices",
@@ -87,8 +91,17 @@ function EntityNode({ data, selected }: NodeProps<TableNode>) {
         </div>
       ))}
       <footer>
-        {data.table.columns.length - keys.length} further attributes · select to
-        inspect
+        <button
+          type="button"
+          className="schema-inspect-button nodrag nopan"
+          aria-label={`Inspect ${title(data.table.name)} attributes`}
+          onClick={(event) => {
+            event.stopPropagation();
+            data.inspect(data.table.name);
+          }}
+        >
+          Inspect attributes ({data.table.columns.length})
+        </button>
       </footer>
     </div>
   );
@@ -99,6 +112,11 @@ export default function SchemaExplorer() {
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const [selected, setSelected] = useState("properties");
+  const [inspection, setInspection] = useState<string[]>([]);
+  const inspectTable = useCallback((name: string) => {
+    setSelected(name);
+    setInspection([name]);
+  }, []);
   const [nearby, setNearby] = useState(false);
   const [flow, setFlow] = useState<ReactFlowInstance<TableNode> | null>(null);
   const [nodes, setNodes, onNodesChange] = useNodesState<TableNode>([]);
@@ -128,11 +146,12 @@ export default function SchemaExplorer() {
           data: {
             table: schema.tables.find((t) => t.name === name)!,
             dimmed: false,
+            inspect: inspectTable,
           },
           selected: name === selected,
         })),
     );
-  }, [schema, setNodes]);
+  }, [schema, setNodes, inspectTable]);
   const connected = useMemo(
     () =>
       new Set([
@@ -185,6 +204,9 @@ export default function SchemaExplorer() {
     ) || [];
   function focusTable(name: string) {
     setSelected(name);
+    setInspection((previous) =>
+      previous.length ? [...previous, name] : [name],
+    );
     void flow?.fitView({
       nodes: [{ id: name }],
       padding: 0.8,
@@ -296,7 +318,7 @@ export default function SchemaExplorer() {
             edges={edges}
             nodeTypes={nodeTypes}
             onNodesChange={onNodesChange}
-            onNodeClick={(_event, node) => setSelected(node.id)}
+            onNodeClick={(_event, node) => inspectTable(node.id)}
             onInit={setFlow}
             fitView
             fitViewOptions={{ padding: 0.12 }}
@@ -396,6 +418,110 @@ export default function SchemaExplorer() {
             </>
           )}
         </aside>
+        {inspection.length > 0 && (
+          <Drawer
+            title={`${title(selected)} attributes`}
+            subtitle="Live database columns, keys and constraints"
+            onClose={() => setInspection([])}
+            onBack={
+              inspection.length > 1
+                ? () => {
+                    const next = inspection.slice(0, -1);
+                    setSelected(next[next.length - 1]);
+                    setInspection(next);
+                  }
+                : undefined
+            }
+            backLabel={
+              inspection.length > 1
+                ? `Back to ${title(inspection[inspection.length - 2])}`
+                : undefined
+            }
+          >
+            <div className="drawer-body schema-inspection-details">
+              {" "}
+              {table && (
+                <>
+                  <span className="eyebrow">ENTITY DETAILS</span>
+                  <h2>{title(table.name)}</h2>
+                  <code className="schema-table-name">public.{table.name}</code>
+                  <h3>
+                    Attributes <span>{table.columns.length}</span>
+                  </h3>
+                  <div className="schema-attributes">
+                    {table.columns.map((c) => (
+                      <div key={c.name}>
+                        <div>
+                          <b
+                            className={
+                              c.primary ? "key-primary" : "key-foreign"
+                            }
+                          >
+                            {c.primary ? "PK" : c.foreign ? "FK" : "·"}
+                          </b>
+                          <code>{c.name}</code>
+                        </div>
+                        <small>
+                          {c.type} · {c.nullable ? "nullable" : "required"}
+                        </small>
+                        {c.default && (
+                          <small title={c.default}>Default: {c.default}</small>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <h3>
+                    Relationships <span>{relations.length}</span>
+                  </h3>
+                  {relations.map((r) => (
+                    <button
+                      className="schema-relationship"
+                      key={`${r.source}-${r.name}`}
+                      onClick={() =>
+                        focusTable(r.source === selected ? r.target : r.source)
+                      }
+                    >
+                      <Network size={15} />
+                      <span>
+                        <strong>
+                          {r.source}.{r.sourceColumns.join(",")}
+                        </strong>
+                        <small>
+                          → {r.target}.{r.targetColumns.join(",")}
+                          <br />
+                          Each child: {r.optional ? "0..1" : "1"} parent · each
+                          parent: 0..{r.childMaximum} children
+                          <br />
+                          Delete: {r.deleteRule}
+                        </small>
+                      </span>
+                    </button>
+                  ))}
+                  <details>
+                    <summary>
+                      Database constraints ({table.constraints.length})
+                    </summary>
+                    {table.constraints.map((c) => (
+                      <div className="schema-constraint" key={c.name}>
+                        <b>{c.type}</b>
+                        <code>{c.details}</code>
+                        <small>
+                          {c.validated
+                            ? "Validated by database"
+                            : "Not yet validated"}
+                        </small>
+                      </div>
+                    ))}
+                  </details>
+                  <details>
+                    <summary>Table SQL & indexes</summary>
+                    <pre>{table.ddl}</pre>
+                  </details>
+                </>
+              )}
+            </div>
+          </Drawer>
+        )}
       </div>
       <div className="schema-legend">
         <span>

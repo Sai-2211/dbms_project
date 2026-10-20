@@ -202,6 +202,33 @@ export async function validateRelations(
       "Change the linked account before changing this officer's designation.",
       409,
     );
+  if (
+    resource.key === "officers" &&
+    old &&
+    (merged.office_id !== old.office_id ||
+      merged.designation !== old.designation)
+  ) {
+    const links = [
+      ["surveys", "officer_id"],
+      ["valuations", "officer_id"],
+      ["transactions", "approving_officer_id"],
+      ["documents", "verifying_officer_id"],
+      ["mutations", "approving_officer_id"],
+      ["applications", "reviewing_officer_id"],
+      ["certificates", "issuing_officer_id"],
+    ];
+    for (const [table, column] of links)
+      demand(
+        !(
+          await client.query(
+            `SELECT id FROM ${table} WHERE ${column}=$1 LIMIT 1`,
+            [old.id],
+          )
+        ).rows.length,
+        "An officer referenced by work records must retain their designation and office.",
+        409,
+      );
+  }
   if (["surveys", "valuations"].includes(resource.key)) {
     const expected =
       resource.key === "surveys" ? "survey_officer" : "valuation_officer";

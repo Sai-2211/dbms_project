@@ -32,7 +32,7 @@ All queries use the same row scopes as record APIs. Audit events capture the off
 
 ## Accounts
 
-Administrators manage **User accounts** from the username menu. The list shows the linked owner/officer, office and officer contact fields. The uncovered-officer list starts creation directly from the existing profile. **Link profile** repairs an existing active account without replacing its username, password or role. Active officer/owner profiles can have only one active account through the account APIs, enforced within serializable transactions and profile locks.
+Administrators manage **User accounts** from the username menu. The list shows the linked owner/officer, office and officer contact fields. The uncovered-officer list starts creation directly from the existing profile. The account form also creates a new officer, office link and login atomically when needed. **Link profile** repairs an existing active account without replacing its username, password or role. Active officer/owner profiles can have only one active account through the account APIs, enforced within serializable transactions and profile locks.
 
 **Delete account** immediately revokes sign-in and existing cookie access. An account that has never acted in an audit event is removed. An account referenced by audit history is retained as inactive with an unusable replacement credential; audit records and registry history remain intact. The signed-in administrator cannot delete their own account.
 

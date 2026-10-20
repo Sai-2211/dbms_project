@@ -2226,6 +2226,50 @@ textarea {
   padding: 8px 12px;
   border-top: 1px solid #edf0e9;
 }
+.schema-inspect-button {
+  border: 0;
+  background: transparent;
+  color: #204e43;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 4px 0;
+}
+.schema-inspect-button:focus-visible {
+  outline: 2px solid #204e43;
+  outline-offset: 4px;
+}
+.schema-inspection-details h3 {
+  margin: 22px 0 10px;
+}
+.schema-inspection-details pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.drawer-back {
+  margin-bottom: 8px;
+}
+.record-path {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: #6b836f;
+}
+.record-path button {
+  border: 0;
+  background: transparent;
+  color: #204e43;
+  padding: 0;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.record-reference {
+  overflow-wrap: anywhere;
+  text-align: left;
+}
 .key-primary,
 .key-foreign {
   font-size: 9px;
