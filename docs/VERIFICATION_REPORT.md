@@ -61,3 +61,8 @@ On 12 October 2026, the authorized hosted training import created **138 registry
 These are regression cases and focused UI/source checks, not exhaustive fuzzing, a load test or security certification. Local checks use a single database node. Multi-node failover, coordinated backup recovery, external government/deed verification, real payment/lending workflows and malware scanning have not been demonstrated.
 
 Audit rows remain editable to privileged SQL administrators. Logout clears a cookie but does not individually revoke an already issued stolen token; account deactivation and expiry still apply. Rate-limit counters are process-local. File signatures do not fully parse documents, and arbitrary uploaded files on Render Free remain temporary. Only the exact versioned training PDF has recovery support. Survey numbers are not globally unique physical parcel identifiers in the approved model.
+
+
+## Officer access update — 20 October 2026
+
+The production build, 25 unit tests and 60 isolated CockroachDB/API integration tests pass. Expanded coverage checks office scopes across lists, direct IDs, lookups, search and dashboard aggregates; assigned survey access; read-only bank/audit roles; ownership/registration dependencies; unique and repairable profile links; deleted-account session revocation; audit preservation; inactive officer sessions; and repeatable account provisioning that preserves credentials and contacts. Browser checks verified a survey work queue and valuation creation defaults against hosted records without submitting registry changes. Hosted account updates were verified separately; these database changes do not themselves deploy the new application code.

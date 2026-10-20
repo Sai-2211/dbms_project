@@ -65,3 +65,8 @@ The executable definition is in `server/schema.sql`. The [approval record](SCHEM
 ## Public-user account update
 
 Approved through the follow-up request to implement and explain the changes. The existing `users.role` check now includes `public_viewer`; the profile check permits that role only with `owner_id IS NULL AND officer_id IS NULL`. These two checks have explicit names, `users_role_allowed` and `users_role_profile`. `server/upgrade-public-role.ts` upgrades the original generated checks after validating their replacements. All existing rows, column definitions, tables and 37 foreign keys are preserved. Public access uses backend projections, not new database entities.
+
+
+## Officer access follow-up — 20 October 2026
+
+The requested account/profile links now include bank verifiers. `officers.designation` accepts `bank_verifier`; `users_role_profile` permits that role’s existing `officer_id` foreign key, while temporarily tolerating null links on legacy bank accounts. New bank accounts require a matching active profile in the API. The migration preserves the 18 tables and 37 foreign keys. Jurisdiction snapshots use the existing audit summary JSON, and account removal retains identities referenced by the audit trail. [Role access](ROLE_ACCESS.md) describes the associated scopes and workflow rules.

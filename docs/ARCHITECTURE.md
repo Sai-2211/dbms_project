@@ -217,7 +217,7 @@ CockroachDB Cloud remains an external database. A paid persistent disk mounted a
 
 ## 12. Explanation for the professor
 
-“We used a three-tier React, Express and CockroachDB architecture. React collects and displays the records, Express validates and authorizes each operation, and CockroachDB stores the related data. We chose advanced distributed SQL because land registration has strongly related records and concurrent workflows across offices. Our main demonstration is a serializable, atomic ownership transfer: old holdings, new shares, approval, mutation and audit changes succeed together or roll back together. We also verify conflicting sales, foreign keys and role restrictions. The interactive ER tab reads the actual database schema. Our single-node demonstration proves the implemented integrity and transaction behaviour; distributed failover would require a separate multi-node test.”
+“We used a three-tier React, Express and CockroachDB architecture. React collects and displays the records, Express validates and authorizes each operation, and CockroachDB stores the related data. We chose advanced distributed SQL because land registration has strongly related records and concurrent workflows across offices. Our main demonstration is a serializable, atomic ownership transfer: old holdings, new shares, approval, mutation and audit changes succeed together or roll back together. We also verify conflicting sales, foreign keys and role restrictions. The administrator-only interactive ER tab reads the actual database schema. Our single-node demonstration proves the implemented integrity and transaction behaviour; distributed failover would require a separate multi-node test.”
 
 ## Public-user portal implementation
 
@@ -227,7 +227,7 @@ After authentication, a deny-by-default guard blocks public accounts from every 
 
 Public responses contain survey number, property type, area, district/state, registration office, registration date/status and internal property ID. Location/address text and all encumbrance information are excluded from both responses and search. The public portal has no bulk export, legal-document download or certificate issuance. Signing up does not verify property ownership or grant private-record access.
 
-The original account profile checks retain owner/officer requirements for the seven existing roles. `public_viewer` requires neither profile, like administrator/bank accounts. Migration adds validated replacement checks before dropping only the two generated legacy constraint names. Each statement is repeatable after interruption; no new migration table or relationship is introduced. Existing SQL users need the same table-alter privileges used by the startup migration.
+The original account profile checks retain owner/officer requirements for the seven existing roles. `public_viewer` and administrators require neither profile. New bank accounts now require an active bank officer profile; legacy null bank links are tolerated by the repeatable migration but receive an empty workspace until repaired. Migration adds validated replacement checks before dropping only the two generated legacy constraint names. Each statement is repeatable after interruption; no new migration table or relationship is introduced. Existing SQL users need the same table-alter privileges used by the startup migration.
 
 ## Public self-registration
 
@@ -238,3 +238,8 @@ Only authenticated administrators may POST to `/api/accounts` to create administ
 ## Controlled fictional dataset import
 
 The administrator-only training import uses a fixed server-owned workbook, existing validators and approval helpers, and one serializable transaction. An audit marker makes repeat requests idempotent, conflicting training identifiers are rejected, and existing accounts/unrelated records are preserved. It generates ownership history and transfer mutations rather than accepting client-supplied approval fields. A completed import has six properties, twelve transactions, fourteen ownership history rows and the supporting records described in [TRAINING_IMPORT.md](TRAINING_IMPORT.md). Known sample PDF downloads can recover the exact versioned bytes after Render Free file loss only when document identifiers, media type, byte length and SHA-256 match; other uploaded files still need persistent storage.
+
+
+## Scoped officer workspaces — 20 October 2026
+
+Department access now uses explicit per-role resource allowlists and SQL row predicates based on the linked officer’s active designation and registration office. Survey access additionally follows the assigned officer; valuation history is limited to the acting valuer. The same predicates protect lists, direct IDs, lookups, related searches, downloads and dashboard aggregates. Metadata includes server-derived write/review flags. Account creation/link repair locks the profile before checking active account uniqueness, and deletion checks audit references before removing or disabling the login. Audit summary JSON captures office jurisdiction for new registry events. See [ROLE_ACCESS.md](ROLE_ACCESS.md) for the complete matrix, approval dependencies and compatibility behavior.

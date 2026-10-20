@@ -17,10 +17,18 @@ import {
   setSession,
   verifyPassword,
 } from "./auth.js";
-import { resourceMap, resources, canRead, canWrite } from "./resources.js";
+import {
+  resourceMap,
+  resources,
+  canRead,
+  canWrite,
+  canReview,
+} from "./resources.js";
 import { accessible, propertyAccess, redact, scope } from "./access.js";
 import { demand, HttpError } from "./errors.js";
 import { uuidPattern, validateRecord } from "./validation.js";
+import { accountLinks } from "./accounts.js";
+import { dashboard } from "./dashboard.js";
 import { publicPortal } from "./public-portal.js";
 import { validatePublicSignup } from "./signup.js";
 import {
@@ -138,6 +146,17 @@ app.post("/api/auth/login", loginLimiter, async (req, res) => {
     "This account belongs to the other sign-in area. Choose Public user or Department / administrator.",
     403,
   );
+  if (rows[0].officer_id)
+    demand(
+      (
+        await pool.query(
+          "SELECT id FROM officers WHERE id=$1 AND active=true AND designation=$2",
+          [rows[0].officer_id, rows[0].role],
+        )
+      ).rows.length,
+      "Your linked officer profile is inactive or has a different designation. Contact the administrator.",
+      403,
+    );
   setSession(res, createSession(rows[0].id));
   const { id, role, owner_id, officer_id } = rows[0];
   res.json({ id, username: rows[0].username, role, owner_id, officer_id });
@@ -199,7 +218,14 @@ app.use("/api", (req, _res, next) => {
   next();
 });
 app.use("/api/public", publicPortal);
-app.get("/api/schema", async (_req, res) => res.json(await readSchema()));
+app.get("/api/schema", async (req, res) => {
+  demand(
+    req.actor.role === "administrator",
+    "Administrator access is required.",
+    403,
+  );
+  res.json(await readSchema());
+});
 app.get("/api/metadata", (req, res) =>
   res.json(
     resources
@@ -207,6 +233,7 @@ app.get("/api/metadata", (req, res) =>
       .map((r) => ({
         ...r,
         canWrite: canWrite(req.actor, r),
+        canReview: canReview(req.actor, r),
         writes: undefined,
         reads: undefined,
       })),
@@ -241,83 +268,9 @@ app.get("/api/lookups/:key", async (req, res) => {
     })),
   );
 });
-app.get("/api/dashboard", async (req, res) => {
-  const p = resourceMap.get("properties")!;
-  const pv: unknown[] = [];
-  const ps = scope(req.actor, p, pv);
-  const properties = await pool.query(
-    `SELECT count(*) AS total,count(*) FILTER(WHERE registration_status='registered') AS registered FROM properties r WHERE ${ps}`,
-    pv,
-  );
-  const types = await pool.query(
-    `SELECT property_type AS label,count(*) AS count FROM properties r WHERE ${ps} GROUP BY property_type ORDER BY count DESC`,
-    pv,
-  );
-  const districts = await pool.query(
-    `SELECT d.district_name AS label,count(*) AS count FROM properties r JOIN districts d ON d.id=r.district_id WHERE ${ps} GROUP BY d.district_name ORDER BY count DESC LIMIT 6`,
-    pv,
-  );
-  const recent = await pool.query(
-    `SELECT r.id,r.survey_no,r.property_type,r.location,r.registration_status,d.district_name FROM properties r JOIN districts d ON d.id=r.district_id WHERE ${ps} ORDER BY r.created_at DESC LIMIT 5`,
-    pv,
-  );
-  let pending = "0",
-    tax = "0",
-    activity: unknown[] = [];
-  if (canRead(req.actor, resourceMap.get("transactions")!)) {
-    const values: unknown[] = [];
-    const predicate = scope(
-      req.actor,
-      resourceMap.get("transactions")!,
-      values,
-    );
-    pending = (
-      await pool.query(
-        `SELECT count(*) AS count FROM transactions r WHERE ${predicate} AND status='pending'`,
-        values,
-      )
-    ).rows[0].count;
-  }
-  if (canRead(req.actor, resourceMap.get("tax_payments")!)) {
-    const values: unknown[] = [];
-    const predicate = scope(
-      req.actor,
-      resourceMap.get("tax_payments")!,
-      values,
-    );
-    tax = (
-      await pool.query(
-        `SELECT coalesce(sum(amount),0) AS amount FROM tax_payments r WHERE ${predicate} AND payment_status='paid'`,
-        values,
-      )
-    ).rows[0].amount;
-  }
-  if (canRead(req.actor, resourceMap.get("audit_events")!))
-    activity = (
-      await pool.query(
-        "SELECT a.id,a.action,a.entity_type,a.occurred_at,u.username FROM audit_events a JOIN users u ON u.id=a.actor_id ORDER BY occurred_at DESC LIMIT 5",
-      )
-    ).rows;
-  const owners = (
-    await pool.query(
-      req.actor.role === "owner"
-        ? "SELECT count(*) AS count FROM owners WHERE id=$1"
-        : "SELECT count(*) AS count FROM owners",
-      req.actor.role === "owner" ? [req.actor.owner_id] : [],
-    )
-  ).rows[0].count;
-  res.json({
-    properties: properties.rows[0].total,
-    registered: properties.rows[0].registered,
-    owners,
-    pending,
-    tax,
-    types: types.rows,
-    districts: districts.rows,
-    recent: recent.rows,
-    activity,
-  });
-});
+app.get("/api/dashboard", async (req, res) =>
+  res.json(await dashboard(req.actor)),
+);
 
 app.get("/api/records/:key", async (req, res) => {
   const r = getResource(req.params.key);
@@ -329,7 +282,8 @@ app.get("/api/records/:key", async (req, res) => {
     values.push(`%${q}%`);
     const searchParameter = values.length;
     const searchable =
-      r.key === "owners" && ["bank_verifier", "owner"].includes(req.actor.role)
+      r.key === "owners" &&
+      ["bank_verifier", "auditor", "owner"].includes(req.actor.role)
         ? [r.label]
         : r.columns;
     const searchParts = searchable.map(
@@ -541,7 +495,26 @@ app.delete("/api/records/:key/:id", async (req, res) => {
         409,
       );
     await client.query(`DELETE FROM ${r.key} WHERE id=$1`, [old.id]);
-    await audit(client, req.actor, "delete", r.key, old.id);
+    const officeId =
+      old.office_id ||
+      (r.key === "offices"
+        ? old.id
+        : old.property_id
+          ? (
+              await client.query(
+                "SELECT office_id FROM properties WHERE id=$1",
+                [old.property_id],
+              )
+            ).rows[0]?.office_id
+          : null);
+    await audit(
+      client,
+      req.actor,
+      "delete",
+      r.key,
+      old.id,
+      officeId ? { office_id: officeId } : {},
+    );
   });
   res.json({ ok: true });
 });
@@ -553,6 +526,7 @@ app.post("/api/records/:key/:id/review", async (req, res) => {
     ["transactions", "documents", "mutations", "applications"].includes(r.key),
     "This record does not have a review workflow.",
   );
+  demand(canReview(req.actor, r), "You cannot review this record.", 403);
   const action = req.body?.action;
   demand(
     ["approve", "reject", "under_review"].includes(action),
@@ -850,9 +824,10 @@ app.get("/api/accounts", async (req, res) => {
   );
   res.json(
     (
-      await pool.query(
-        "SELECT id,username,role,owner_id,officer_id,active FROM users ORDER BY created_at DESC",
-      )
+      await pool.query(`SELECT u.id,u.username,u.role,u.owner_id,u.officer_id,u.active,
+    o.officer_name,o.email,o.phone,f.office_name,n.owner_name
+    FROM users u LEFT JOIN officers o ON o.id=u.officer_id LEFT JOIN offices f ON f.id=o.office_id
+    LEFT JOIN owners n ON n.id=u.owner_id ORDER BY u.created_at DESC`)
     ).rows,
   );
 });
@@ -886,53 +861,104 @@ app.post("/api/accounts", async (req, res) => {
     ].includes(role),
     "Select a valid role.",
   );
-  if (role === "owner") validateId(owner_id);
-  if (
-    [
-      "survey_officer",
-      "valuation_officer",
-      "sub_registrar",
-      "auditor",
-    ].includes(role)
-  )
-    validateId(officer_id);
   const result = await transaction(async (client) => {
-    if (
-      [
-        "survey_officer",
-        "valuation_officer",
-        "sub_registrar",
-        "auditor",
-      ].includes(role)
-    )
-      demand(
-        (
-          await client.query(
-            "SELECT id FROM officers WHERE id=$1 AND designation=$2 AND active=true",
-            [officer_id, role],
-          )
-        ).rows.length,
-        "The linked officer must be active and have the matching designation.",
-      );
+    const links = await accountLinks(client, role, owner_id, officer_id);
     const row = await insert(client, "users", {
       username: username.toLowerCase(),
       password_hash: hashPassword(password),
       role,
-      owner_id: role === "owner" ? owner_id : null,
-      officer_id: [
-        "survey_officer",
-        "valuation_officer",
-        "sub_registrar",
-        "auditor",
-      ].includes(role)
-        ? officer_id
-        : null,
+      ...links,
     });
     await audit(client, req.actor, "create", "users", row.id, { role });
     delete row.password_hash;
     return row;
   });
   res.status(201).json(result);
+});
+// Repair existing profile links without silently changing credentials or roles.
+app.patch("/api/accounts/:id", async (req, res) => {
+  demand(
+    req.actor.role === "administrator",
+    "Administrator access is required.",
+    403,
+  );
+  validateId(req.params.id);
+  demand(
+    req.body &&
+      Object.keys(req.body).every((k) =>
+        ["owner_id", "officer_id"].includes(k),
+      ),
+    "Only linked profiles can be changed here.",
+  );
+  const result = await transaction(async (client) => {
+    const old = (
+      await client.query(
+        "SELECT * FROM users WHERE id=$1 AND active=true FOR UPDATE",
+        [req.params.id],
+      )
+    ).rows[0];
+    demand(old, "Active account not found.", 404);
+    demand(
+      !["administrator", "public_viewer"].includes(old.role),
+      "This role does not use a linked profile.",
+    );
+    const links = await accountLinks(
+      client,
+      old.role,
+      req.body.owner_id ?? old.owner_id,
+      req.body.officer_id ?? old.officer_id,
+      old.id,
+    );
+    const row = (
+      await client.query(
+        "UPDATE users SET owner_id=$1,officer_id=$2,updated_at=now() WHERE id=$3 RETURNING id,username,role,owner_id,officer_id,active",
+        [links.owner_id, links.officer_id, old.id],
+      )
+    ).rows[0];
+    await audit(client, req.actor, "link_profile", "users", old.id, links);
+    return row;
+  });
+  res.json(result);
+});
+app.delete("/api/accounts/:id", async (req, res) => {
+  demand(
+    req.actor.role === "administrator",
+    "Administrator access is required.",
+    403,
+  );
+  validateId(req.params.id);
+  demand(
+    req.params.id !== req.actor.id,
+    "You cannot delete your own signed-in account.",
+    409,
+  );
+  const result = await transaction(async (client) => {
+    const account = (
+      await client.query(
+        "SELECT id,role,active FROM users WHERE id=$1 FOR UPDATE",
+        [req.params.id],
+      )
+    ).rows[0];
+    demand(account, "Account not found.", 404);
+    const retained = !!(
+      await client.query(
+        "SELECT id FROM audit_events WHERE actor_id=$1 LIMIT 1",
+        [account.id],
+      )
+    ).rows.length;
+    if (retained)
+      await client.query(
+        "UPDATE users SET active=false,password_hash=$1,updated_at=now() WHERE id=$2",
+        [hashPassword(randomUUID()), account.id],
+      );
+    else await client.query("DELETE FROM users WHERE id=$1", [account.id]);
+    await audit(client, req.actor, "delete_account", "users", account.id, {
+      role: account.role,
+      history_retained: retained,
+    });
+    return { ok: true, history_retained: retained };
+  });
+  res.json(result);
 });
 
 app.use("/api", (_req, res) =>

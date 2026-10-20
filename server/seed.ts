@@ -145,6 +145,14 @@ try {
           }),
         );
       }
+      const bankOfficer = await insert(client, "officers", {
+        officer_name: "Demo Bank Verifier",
+        designation: "bank_verifier",
+        office_id: offices[0].id,
+        email: "bank@example.test",
+        phone: "9000000099",
+        active: true,
+      });
       const admin = await insert(client, "users", {
         username: "admin@landledger.local",
         password_hash: hashPassword(password),
@@ -178,7 +186,11 @@ try {
           role: "valuation_officer",
           officer_id: valuers[0].id,
         },
-        { username: "bank@landledger.local", role: "bank_verifier" },
+        {
+          username: "bank@landledger.local",
+          role: "bank_verifier",
+          officer_id: bankOfficer.id,
+        },
         {
           username: "auditor@landledger.local",
           role: "auditor",

@@ -185,6 +185,7 @@ export const resources: Resource[] = [
         "valuation_officer",
         "sub_registrar",
         "auditor",
+        "bank_verifier",
       ]),
       ref("office_id", "Office", "offices"),
       ...optionalContact,
@@ -508,7 +509,7 @@ export const resources: Resource[] = [
     description: "A record of who changed what and when.",
     label: "action",
     writes: [],
-    reads: ["administrator", "auditor", "sub_registrar"],
+    reads: ["administrator", "auditor"],
     columns: ["occurred_at", "action", "entity_type", "actor_id"],
     fields: [
       text("action", "Action"),
@@ -522,22 +523,95 @@ export const resources: Resource[] = [
 export const resourceMap = new Map(
   resources.map((resource) => [resource.key, resource]),
 );
+// Explicit allowlists: new resources are private until a role is granted access.
+const readable: Record<Role, string[]> = {
+  administrator: resources.map((r) => r.key),
+  public_viewer: [],
+  owner: [
+    "properties",
+    "owners",
+    "districts",
+    "offices",
+    "transactions",
+    "documents",
+    "surveys",
+    "valuations",
+    "tax_payments",
+    "encumbrances",
+    "mutations",
+    "ownerships",
+    "transaction_parties",
+    "applications",
+    "certificates",
+  ],
+  sub_registrar: [
+    "properties",
+    "owners",
+    "districts",
+    "offices",
+    "officers",
+    "transactions",
+    "documents",
+    "surveys",
+    "valuations",
+    "tax_payments",
+    "encumbrances",
+    "mutations",
+    "ownerships",
+    "transaction_parties",
+    "applications",
+    "certificates",
+  ],
+  survey_officer: ["properties", "districts", "offices", "officers", "surveys"],
+  valuation_officer: [
+    "properties",
+    "districts",
+    "offices",
+    "officers",
+    "surveys",
+    "valuations",
+  ],
+  bank_verifier: [
+    "properties",
+    "districts",
+    "offices",
+    "officers",
+    "ownerships",
+    "owners",
+    "encumbrances",
+    "certificates",
+  ],
+  auditor: [
+    "owners",
+    "properties",
+    "districts",
+    "offices",
+    "officers",
+    "transactions",
+    "documents",
+    "surveys",
+    "valuations",
+    "tax_payments",
+    "encumbrances",
+    "mutations",
+    "ownerships",
+    "transaction_parties",
+    "applications",
+    "certificates",
+    "audit_events",
+  ],
+};
 export function canRead(actor: Actor, resource: Resource) {
-  if (actor.role === "public_viewer") return false;
-  if (resource.reads) return resource.reads.includes(actor.role);
-  if (actor.role === "bank_verifier")
-    return [
-      "properties",
-      "districts",
-      "offices",
-      "ownerships",
-      "owners",
-      "encumbrances",
-      "certificates",
-    ].includes(resource.key);
-  if (actor.role === "owner") return !["officers"].includes(resource.key);
-  return true;
+  return readable[actor.role]?.includes(resource.key) ?? false;
 }
 export function canWrite(actor: Actor, resource: Resource) {
-  return resource.writes.includes(actor.role);
+  return canRead(actor, resource) && resource.writes.includes(actor.role);
+}
+export function canReview(actor: Actor, resource: Resource) {
+  return (
+    ["administrator", "sub_registrar"].includes(actor.role) &&
+    ["transactions", "documents", "mutations", "applications"].includes(
+      resource.key,
+    )
+  );
 }

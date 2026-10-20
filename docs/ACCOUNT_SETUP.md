@@ -58,3 +58,8 @@ For a free service, set `UPLOAD_DIR=uploads` and do not attach a paid disk. This
 ## Create accounts after administrator setup
 
 Use **Department / administrator** when signing in. Open the top-right account menu → **User accounts → Add user account**. Select **Public user · read-only** for a general visitor; choose a username and private password of 12–128 characters. The visitor signs in through **Public user** and can view safe registered-property information only. Existing owner and officer accounts use the department area and require their matching linked profiles. Visitors may alternatively select **Public user → Create account** to register a read-only account themselves. See [PUBLIC_SIGNUP.md](PUBLIC_SIGNUP.md).
+
+
+## Officer links and account deletion
+
+All new staff accounts, including bank verifiers, require an active officer profile with the matching designation and office. User accounts shows existing profile/office links and officers without accounts. Use **Link profile** to repair an active account without replacing its credentials. **Delete account** revokes access immediately; referenced audit identities remain inactive so history stays connected. See [Role access and workflows](ROLE_ACCESS.md).

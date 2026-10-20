@@ -13,6 +13,34 @@ export async function audit(
   id: string,
   summary: Record<string, unknown> = {},
 ) {
+  // Capture jurisdiction at the time of the action, including later-deleted records.
+  if (entity !== "users" && !summary.office_id) {
+    let query: string | undefined;
+    if (entity === "properties")
+      query = "SELECT office_id FROM properties WHERE id=$1";
+    else if (entity === "officers")
+      query = "SELECT office_id FROM officers WHERE id=$1";
+    else if (entity === "offices") summary = { ...summary, office_id: id };
+    else if (entity === "transaction_parties")
+      query =
+        "SELECT t.office_id FROM transactions t JOIN transaction_parties tp ON tp.transaction_id=t.id WHERE tp.id=$1";
+    else if (
+      resourceMap.get(entity)?.fields.some((f) => f.key === "property_id")
+    )
+      query = `SELECT p.office_id FROM properties p JOIN ${entity} r ON r.property_id=p.id WHERE r.id=$1`;
+    if (query) {
+      const office = (await client.query(query, [id])).rows[0]?.office_id;
+      if (office) summary = { ...summary, office_id: office };
+    }
+    if (entity === "owners" && actor.officer_id) {
+      const office = (
+        await client.query("SELECT office_id FROM officers WHERE id=$1", [
+          actor.officer_id,
+        ])
+      ).rows[0]?.office_id;
+      if (office) summary = { ...summary, office_id: office };
+    }
+  }
   await client.query(
     "INSERT INTO audit_events(actor_id,action,entity_type,entity_id,summary) VALUES($1,$2,$3,$4,$5)",
     [actor.id, action, entity, id, JSON.stringify(summary)],
@@ -106,6 +134,19 @@ export async function validateRelations(
   const referencedProperty = merged.property_id
     ? await propertyAccess(client, actor, String(merged.property_id))
     : undefined;
+  if (actor.role === "sub_registrar" && resource.key === "properties") {
+    const profile = (
+      await client.query(
+        "SELECT office_id FROM officers WHERE id=$1 AND active=true AND designation='sub_registrar'",
+        [actor.officer_id],
+      )
+    ).rows[0];
+    demand(
+      profile?.office_id === merged.office_id,
+      "Use your own registration office.",
+      403,
+    );
+  }
   if (resource.key === "properties") {
     const office = await client.query(
       "SELECT district_id FROM offices WHERE id=$1",

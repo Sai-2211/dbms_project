@@ -80,8 +80,15 @@ before(async () => {
       owner_id: null,
       officer_id: null,
     };
+    const bankProfile = await insert(client, "officers", {
+      officer_name: "Test Bank Officer",
+      designation: "bank_verifier",
+      office_id: office.id,
+      active: true,
+    });
     bank = await insert(client, "users", {
       username: "test-bank",
+      officer_id: bankProfile.id,
       password_hash: hashPassword(password),
       role: "bank_verifier",
     });
@@ -1334,6 +1341,16 @@ test("officer designation and linked identity are enforced", async () => {
         data: { ...input, officer_id: surveyor.id },
       })
     ).status,
+    404,
+    "Unassigned parcels cannot be self-assigned",
+  );
+  await create("surveys", { ...input, officer_id: surveyor.id }, cookie);
+  assert.equal(
+    (
+      await request("/records/surveys", surveyCookie, "POST", {
+        data: { ...input, officer_id: surveyor.id },
+      })
+    ).status,
     201,
   );
   const other = await create(
@@ -2018,7 +2035,18 @@ test("account creation validates passwords, roles and required linked profiles",
       JSON.stringify(input),
     );
   }
+  const bankProfile = await create(
+    "officers",
+    {
+      officer_name: "QA Bank",
+      designation: "bank_verifier",
+      office_id: office.id,
+      active: true,
+    },
+    cookie,
+  );
   const valid = await request("/accounts", cookie, "POST", {
+    officer_id: bankProfile.id,
     username: "qa-valid-bank",
     password,
     role: "bank_verifier",
@@ -2029,6 +2057,7 @@ test("account creation validates passwords, roles and required linked profiles",
     (
       await request("/accounts", cookie, "POST", {
         username: "qa-valid-bank",
+        officer_id: bankProfile.id,
         password,
         role: "bank_verifier",
       })
@@ -2195,6 +2224,14 @@ test("survey and valuation officers cannot maintain a parcel from another regist
 test("public role migration upgrades legacy checks twice without changing existing accounts or relationships", async () => {
   const { upgradePublicRole } =
     await import("../../server/upgrade-public-role.js");
+  const bankLinks = (
+    await pool.query(
+      "SELECT id,officer_id FROM users WHERE role='bank_verifier'",
+    )
+  ).rows;
+  await pool.query(
+    "UPDATE users SET officer_id=NULL WHERE role='bank_verifier'",
+  );
   const before = (await pool.query("SELECT * FROM users ORDER BY id")).rows;
   await pool.query(
     "ALTER TABLE users ADD CONSTRAINT check_role CHECK(role IN ('administrator','owner','survey_officer','valuation_officer','sub_registrar','bank_verifier','auditor'))",
@@ -2226,6 +2263,11 @@ test("public role migration upgrades legacy checks twice without changing existi
     ).rows[0].n,
     "37",
   );
+  for (const link of bankLinks)
+    await pool.query("UPDATE users SET officer_id=$1 WHERE id=$2", [
+      link.officer_id,
+      link.id,
+    ]);
 });
 
 let publicCookie = "";
@@ -3078,6 +3120,436 @@ test("training import preserves unrelated records, verifies all workflows and fi
   ).rows;
   assert.equal(audit.length, 1);
   assert.equal(audit[0].actor_id, actor.id);
+});
+
+test("department allowlists, office scopes and assigned survey records cover lists, IDs, lookups, search and dashboards", async () => {
+  const admin = await login("test-admin");
+  const otherDistrict = await create(
+    "districts",
+    { district_name: randomUUID(), state_name: "Private State" },
+    admin,
+  );
+  const otherOffice = await create(
+    "offices",
+    {
+      office_name: "Outside office sentinel",
+      office_code: randomUUID(),
+      district_id: otherDistrict.id,
+      address: "Private office",
+    },
+    admin,
+  );
+  const outside = await create(
+    "properties",
+    {
+      survey_no: `OUTSIDE-${randomUUID()}`,
+      property_type: "commercial",
+      area: "100",
+      location: "Hidden location sentinel",
+      boundary_details: "Hidden boundary",
+      district_id: otherDistrict.id,
+      office_id: otherOffice.id,
+    },
+    admin,
+  );
+  const f = await fixture();
+  const ownSurvey = await create(
+    "surveys",
+    {
+      property_id: f.property.id,
+      officer_id: surveyor.id,
+      survey_no: randomUUID(),
+      survey_date: "2025-01-01",
+      survey_area: "10",
+      boundary_details: "Assigned survey",
+      survey_status: "scheduled",
+    },
+    admin,
+  );
+  const colleague = await create(
+    "officers",
+    {
+      officer_name: "Survey colleague",
+      designation: "survey_officer",
+      office_id: office.id,
+      active: true,
+    },
+    admin,
+  );
+  const colleagueSurvey = await create(
+    "surveys",
+    {
+      property_id: f.property.id,
+      officer_id: colleague.id,
+      survey_no: randomUUID(),
+      survey_date: "2025-01-01",
+      survey_area: "10",
+      boundary_details: "Colleague survey",
+      survey_status: "scheduled",
+    },
+    admin,
+  );
+  for (const role of [
+    "sub_registrar",
+    "survey_officer",
+    "valuation_officer",
+    "bank",
+    "auditor",
+  ]) {
+    const cookie = await login(`test-${role}`);
+    assert.equal(
+      (await request(`/records/properties/${outside.id}`, cookie)).status,
+      404,
+      role,
+    );
+    assert.equal(
+      (await request(`/records/properties?q=${outside.survey_no}`, cookie)).body
+        .total,
+      0,
+      role,
+    );
+    assert.equal(
+      (await request("/lookups/properties", cookie)).body.some(
+        (r: any) => r.id === outside.id,
+      ),
+      false,
+      role,
+    );
+    assert.equal(
+      (await request("/lookups/offices", cookie)).body.some(
+        (r: any) => r.id === otherOffice.id,
+      ),
+      false,
+      role,
+    );
+    assert.equal((await request("/schema", cookie)).status, 403, role);
+    const dashboard = await request("/dashboard", cookie);
+    assert.equal(dashboard.status, 200, JSON.stringify(dashboard.body));
+    assert(
+      !JSON.stringify(dashboard.body).includes("Hidden location sentinel"),
+      role,
+    );
+    assert(!dashboard.body.recent.some((r: any) => r.id === outside.id), role);
+    assert(
+      !dashboard.body.districts.some(
+        (r: any) => r.label === otherDistrict.district_name,
+      ),
+      role,
+    );
+    assert.equal(dashboard.body.profile.office_name, office.office_name);
+    assert.equal(dashboard.body.accounts, null);
+    const metadata = (await request("/metadata", cookie)).body;
+    if (["survey_officer", "valuation_officer"].includes(role)) {
+      for (const key of [
+        "owners",
+        "documents",
+        "transactions",
+        "tax_payments",
+        "audit_events",
+      ]) {
+        assert.equal(
+          (await request(`/records/${key}`, cookie)).status,
+          403,
+          `${role}:${key}`,
+        );
+        assert(!metadata.some((r: any) => r.key === key));
+      }
+      assert.equal(dashboard.body.tax, "0");
+      assert.equal(dashboard.body.owners, "0");
+      assert.deepEqual(dashboard.body.activity, []);
+    }
+    if (["bank", "auditor"].includes(role)) {
+      assert(metadata.every((r: any) => !r.canWrite && !r.canReview));
+      assert.deepEqual(dashboard.body.work, []);
+    }
+    if (role === "sub_registrar") {
+      assert(!metadata.some((r: any) => r.key === "audit_events"));
+      assert.equal(
+        (
+          await request(`/records/properties/${outside.id}`, cookie, "PATCH", {
+            data: { location: "Spoof" },
+          })
+        ).status,
+        404,
+      );
+      assert.equal(
+        (
+          await request("/records/properties", cookie, "POST", {
+            data: {
+              ...outside,
+              id: undefined,
+              created_at: undefined,
+              updated_at: undefined,
+              registration_status: undefined,
+              registration_date: undefined,
+              survey_no: randomUUID(),
+            },
+          })
+        ).status,
+        403,
+      );
+    }
+    if (role === "survey_officer") {
+      assert.equal(
+        (await request(`/records/surveys/${ownSurvey.id}`, cookie)).status,
+        200,
+      );
+      assert.equal(
+        (await request(`/records/surveys/${colleagueSurvey.id}`, cookie))
+          .status,
+        404,
+      );
+      assert.equal(
+        (
+          await request(
+            `/records/surveys/${colleagueSurvey.id}`,
+            cookie,
+            "PATCH",
+            { data: { survey_status: "completed" } },
+          )
+        ).status,
+        404,
+      );
+      assert(
+        dashboard.body.work
+          .find((q: any) => q.resource === "surveys")
+          .rows.every((r: any) => r.officer_id === surveyor.id),
+      );
+      assert.equal(
+        (
+          await request(`/records/surveys/${ownSurvey.id}`, cookie, "PATCH", {
+            data: { survey_status: "completed" },
+          })
+        ).status,
+        200,
+      );
+    }
+    assert.equal(
+      (
+        await request(
+          `/records/documents/${randomUUID()}/review`,
+          cookie,
+          "POST",
+          { action: "approve" },
+        )
+      ).status,
+      role === "sub_registrar" ? 404 : 403,
+    );
+  }
+  const disposable = await create(
+    "properties",
+    {
+      survey_no: randomUUID(),
+      property_type: "residential",
+      area: "1",
+      location: "To remove",
+      boundary_details: "Boundary",
+      district_id: district.id,
+      office_id: office.id,
+    },
+    admin,
+  );
+  assert.equal(
+    (await request(`/records/properties/${disposable.id}`, admin, "DELETE"))
+      .status,
+    200,
+  );
+  const auditor = await login("test-auditor");
+  const deletedEvent = (
+    await request("/records/audit_events?limit=100", auditor)
+  ).body.rows.find(
+    (r: any) => r.entity_id === disposable.id && r.action === "delete",
+  );
+  assert(deletedEvent, "Office auditors retain visibility of deletion events");
+  assert.equal(
+    (await request(`/records/audit_events/${randomUUID()}`, auditor)).status,
+    404,
+    "An OR in the office scope cannot bypass a requested record ID",
+  );
+  const redactedOwners = await request("/records/owners", auditor);
+  assert.equal(redactedOwners.status, 200);
+  assert(
+    redactedOwners.body.rows.every(
+      (r: any) =>
+        !("identification_no" in r) && !("email" in r) && !("phone" in r),
+    ),
+  );
+  const activity = await request("/records/audit_events?limit=100", auditor);
+  assert.equal(activity.status, 200);
+  assert(!activity.body.rows.some((r: any) => r.entity_id === outside.id));
+  const adminDashboard = await request("/dashboard", admin);
+  assert.equal(adminDashboard.status, 200);
+  assert(Number(adminDashboard.body.accounts.total) > 0);
+  assert(
+    Number(adminDashboard.body.counts.properties) >
+      Number(
+        (await request("/dashboard", await login("test-sub_registrar"))).body
+          .counts.properties,
+      ),
+  );
+  assert.equal((await request("/schema", admin)).status, 200);
+});
+
+test("account links are unique and repairable; account deletion revokes old sessions and retains audit references", async () => {
+  const admin = await login("test-admin");
+  const profile = await create(
+    "officers",
+    {
+      officer_name: "Linked Bank",
+      designation: "bank_verifier",
+      office_id: office.id,
+      active: true,
+    },
+    admin,
+  );
+  const created = await request("/accounts", admin, "POST", {
+    username: `bank-${randomUUID()}`,
+    password,
+    role: "bank_verifier",
+    officer_id: profile.id,
+  });
+  assert.equal(created.status, 201);
+  const session = await login(created.body.username);
+  assert.equal(
+    (
+      await request("/accounts", admin, "POST", {
+        username: `bank-${randomUUID()}`,
+        password,
+        role: "bank_verifier",
+        officer_id: profile.id,
+      })
+    ).status,
+    409,
+  );
+  assert.equal(
+    (
+      await request(
+        `/accounts/${created.body.id}`,
+        await login("test-owner"),
+        "DELETE",
+      )
+    ).status,
+    403,
+  );
+  assert.equal(
+    (await request(`/accounts/${actor.id}`, admin, "DELETE")).status,
+    409,
+  );
+  assert.equal(
+    (
+      await request(`/accounts/${created.body.id}`, admin, "PATCH", {
+        role: "administrator",
+      })
+    ).status,
+    400,
+  );
+  const legacy = await transaction((client) =>
+    insert(client, "users", {
+      username: `legacy-bank-${randomUUID()}`,
+      password_hash: hashPassword(password),
+      role: "bank_verifier",
+    }),
+  );
+  const legacySession = await login(legacy.username);
+  const noProfile = await request("/dashboard", legacySession);
+  assert.equal(noProfile.status, 200);
+  assert.equal(noProfile.body.needsProfile, true);
+  assert.equal(noProfile.body.properties, "0");
+  assert.deepEqual(
+    (await request("/records/properties", legacySession)).body.rows,
+    [],
+  );
+  assert.equal(
+    (
+      await request(`/accounts/${legacy.id}`, admin, "PATCH", {
+        officer_id: profile.id,
+      })
+    ).status,
+    409,
+  );
+  const deleted = await request(
+    `/accounts/${created.body.id}`,
+    admin,
+    "DELETE",
+  );
+  assert.equal(deleted.status, 200);
+  assert.equal(deleted.body.history_retained, false);
+  assert.equal((await request("/auth/me", session)).status, 401);
+  assert.equal(
+    (
+      await request(`/accounts/${legacy.id}`, admin, "PATCH", {
+        officer_id: profile.id,
+      })
+    ).status,
+    200,
+  );
+  assert.equal(
+    (await request("/dashboard", legacySession)).body.needsProfile,
+    false,
+  );
+  await pool.query(
+    "INSERT INTO audit_events(actor_id,action,entity_type,entity_id,summary) VALUES($1,'test_history','properties',$2,'{}')",
+    [legacy.id, randomUUID()],
+  );
+  const retained = await request(`/accounts/${legacy.id}`, admin, "DELETE");
+  assert.equal(retained.status, 200);
+  assert.equal(retained.body.history_retained, true);
+  assert.equal((await request("/auth/me", legacySession)).status, 401);
+  assert.equal(
+    (await pool.query("SELECT active FROM users WHERE id=$1", [legacy.id]))
+      .rows[0].active,
+    false,
+  );
+  assert.equal(
+    (
+      await pool.query(
+        "SELECT count(*) AS n FROM audit_events WHERE actor_id=$1",
+        [legacy.id],
+      )
+    ).rows[0].n,
+    "1",
+  );
+});
+
+test("inactive officer profiles revoke existing sessions and prevent new sign-ins", async () => {
+  const cookie = await login("test-admin");
+  const profile = await create(
+    "officers",
+    {
+      officer_name: "Temporary officer",
+      designation: "survey_officer",
+      office_id: office.id,
+      active: true,
+    },
+    cookie,
+  );
+  const username = `temporary-${randomUUID()}`;
+  assert.equal(
+    (
+      await request("/accounts", cookie, "POST", {
+        username,
+        password,
+        role: "survey_officer",
+        officer_id: profile.id,
+      })
+    ).status,
+    201,
+  );
+  const session = await login(username);
+  assert.equal(
+    (
+      await request(`/records/officers/${profile.id}`, cookie, "PATCH", {
+        data: { active: false },
+      })
+    ).status,
+    200,
+  );
+  assert.equal((await request("/auth/me", session)).status, 401);
+  assert.equal(
+    (await request("/auth/login", undefined, "POST", { username, password }))
+      .status,
+    403,
+  );
 });
 
 test("login throttling blocks repeated guessing attempts", async () => {

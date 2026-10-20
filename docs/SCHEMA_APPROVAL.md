@@ -43,3 +43,7 @@ Approval requested: permit the reconstructed four entities, foreign-key/constrai
 ## Public-user role follow-up — 12 October 2026
 
 The user authorized implementation with “just explain the changes, once it is done” and then requested continuation of the different login types. The approved change adds `public_viewer` to the existing `users` role/profile checks, requiring null owner/officer links. No new tables, columns or foreign keys were introduced. The upgrade preserves rows and the 18-table/37-relationship model; public-data restrictions are enforced through explicit backend projections. See [PUBLIC_SIGNUP.md](PUBLIC_SIGNUP.md).
+
+## Officer/account follow-up — 20 October 2026
+
+The user requested limited officer access, linked accounts for every existing officer, administrator account deletion, and role-specific approvals/dashboards. They also supplied the requested bank officer profile and office assignment. This authorizes the existing bank role’s officer foreign-key link and the addition of `bank_verifier` to officer designations. The upgrade retains the 18-table/37-relationship model, existing data and credentials. See [ROLE_ACCESS.md](ROLE_ACCESS.md) for scopes, workflow dependencies and the migration’s compatibility behavior.

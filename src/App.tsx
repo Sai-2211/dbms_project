@@ -53,7 +53,7 @@ import { csvCell } from "./csv";
 import PublicPortal from "./PublicPortal";
 const SchemaExplorer = lazy(() => import("./SchemaExplorer"));
 
-type Meta = Resource & { canWrite: boolean };
+type Meta = Resource & { canWrite: boolean; canReview: boolean };
 type Row = Record<string, any>;
 type Lookup = {
   id: string;
@@ -79,6 +79,28 @@ type Dashboard = {
   districts: { label: string; count: string }[];
   recent: Row[];
   activity: Row[];
+  counts: Record<string, string>;
+  work: {
+    resource: string;
+    title: string;
+    count: string;
+    action: string;
+    rows: Row[];
+    create?: boolean;
+  }[];
+  profile: {
+    officer_name: string;
+    office_name: string;
+    email?: string;
+    phone?: string;
+  } | null;
+  needsProfile: boolean;
+  accounts: {
+    total: string;
+    active: string;
+    uncovered_officers: string;
+    unlinked_staff: string;
+  } | null;
 };
 const icons: Record<string, LucideIcon> = {
   properties: Layers3,
@@ -825,29 +847,33 @@ function Workspace({
           >
             <Home size={18} />
           </button>
-          {coreTabs.map((key) => {
-            const resource = resources.find((r) => r.key === key);
-            return (
-              <button
-                key={key}
-                disabled={!resource && !meta.loading}
-                className={route === key ? "active" : ""}
-                onClick={() => navigate(key)}
-              >
-                <Icon name={key} size={16} />
-                <span>
-                  {key === "tax_payments" ? "Tax payments" : nice(key)}
-                </span>
-              </button>
-            );
-          })}
-          <button
-            className={route === "diagram" ? "active" : ""}
-            onClick={() => navigate("diagram")}
-          >
-            <Network size={16} />
-            <span>ER diagram</span>
-          </button>
+          {coreTabs
+            .filter((key) => resources.some((r) => r.key === key))
+            .map((key) => {
+              const resource = resources.find((r) => r.key === key);
+              return (
+                <button
+                  key={key}
+                  disabled={!resource && !meta.loading}
+                  className={route === key ? "active" : ""}
+                  onClick={() => navigate(key)}
+                >
+                  <Icon name={key} size={16} />
+                  <span>
+                    {key === "tax_payments" ? "Tax payments" : nice(key)}
+                  </span>
+                </button>
+              );
+            })}
+          {actor.role === "administrator" && (
+            <button
+              className={route === "diagram" ? "active" : ""}
+              onClick={() => navigate("diagram")}
+            >
+              <Network size={16} />
+              <span>ER diagram</span>
+            </button>
+          )}
         </nav>
       </div>
       <main className="main-content">
@@ -865,9 +891,10 @@ function Workspace({
             revision={revision}
             navigate={navigate}
             create={openCreate}
+            manageAccounts={() => setAccounts(true)}
             open={(key, row) => setDrawer({ resource: key, row })}
           />
-        ) : route === "diagram" ? (
+        ) : route === "diagram" && actor.role === "administrator" ? (
           <Suspense fallback={<Loading />}>
             <SchemaExplorer />
           </Suspense>
@@ -925,6 +952,7 @@ function Workspace({
       {accounts && (
         <AccountsDrawer
           lookups={lookups}
+          actor={actor}
           onClose={() => setAccounts(false)}
           onChanged={changed}
         />
@@ -959,12 +987,14 @@ function DashboardPage({
   navigate,
   create,
   open,
+  manageAccounts,
 }: {
   actor: Actor;
   resources: Meta[];
   revision: number;
   navigate: (k: string) => void;
-  create: (k: string) => void;
+  create: (k: string, defaults?: Row) => void;
+  manageAccounts: () => void;
   open: (k: string, r: Row) => void;
 }) {
   const { data, loading, error } = useLoad<Dashboard>("/dashboard", revision);
@@ -981,7 +1011,7 @@ function DashboardPage({
       return `${colors[t.label]} ${start}% ${running}%`;
     })
     .join(",");
-  const stats = [
+  const generalStats = [
     {
       label: "Total properties",
       value: compact(data.properties),
@@ -1012,6 +1042,54 @@ function DashboardPage({
       route: "tax_payments",
     },
   ];
+  const roleTitles: Record<string, [string, string]> = {
+    administrator: [
+      "Administrator dashboard",
+      "Oversee every office, account, approval and registry record.",
+    ],
+    owner: [
+      "Owner dashboard",
+      "Your properties, applications and registration progress.",
+    ],
+    sub_registrar: [
+      "Sub-registrar dashboard",
+      "Review deeds, registrations, mutations and service applications for your office.",
+    ],
+    survey_officer: [
+      "Survey officer dashboard",
+      "Complete your assigned field surveys and maintain parcel boundaries.",
+    ],
+    valuation_officer: [
+      "Valuation officer dashboard",
+      "Assess parcels in your office and review your recorded valuations.",
+    ],
+    bank_verifier: [
+      "Bank verification dashboard",
+      "Review office property titles, ownership, claims and certificates. Bank access is read-only.",
+    ],
+    auditor: [
+      "Audit dashboard",
+      "Inspect your office’s registry records and audit trail. Audit access is read-only.",
+    ],
+  };
+  const [heading, description] = roleTitles[actor.role];
+  const roleStatKeys: Record<string, string[]> = {
+    survey_officer: ["properties", "surveys"],
+    valuation_officer: ["properties", "valuations", "surveys"],
+    bank_verifier: ["properties", "ownerships", "encumbrances", "certificates"],
+    auditor: ["properties", "transactions", "documents", "audit_events"],
+  };
+  const stats = roleStatKeys[actor.role]
+    ? roleStatKeys[actor.role].map((key) => ({
+        label: resources.find((r) => r.key === key)?.title || nice(key),
+        value: compact(data.counts[key] || 0),
+        note: "Records available to your account",
+        icon: icons[key] || Layers3,
+        route: key,
+      }))
+    : generalStats.filter((stat) =>
+        resources.some((r) => r.key === stat.route),
+      );
   const maxDistrict = Math.max(
     1,
     ...data.districts.map((d) => Number(d.count)),
@@ -1024,9 +1102,10 @@ function DashboardPage({
             <Home size={13} /> Workspace <span>/</span> Overview
           </div>
           <h1>
-            Registry overview<span>.</span>
+            {heading}
+            <span>.</span>
           </h1>
-          <p>A clearer view of your properties, people, and pending work.</p>
+          <p>{description}</p>
         </div>
         <div className="heading-actions">
           <span className="today">
@@ -1046,17 +1125,17 @@ function DashboardPage({
       </div>
       <section className="welcome-banner">
         <div>
-          <span className="eyebrow light">YOUR CONNECTED LAND REGISTRY</span>
+          <span className="eyebrow light">
+            {data.profile
+              ? `${data.profile.officer_name} · ${data.profile.office_name}`
+              : nice(actor.role)}
+          </span>
           <h2>
             Good records.
             <br />
             <em>Confident decisions.</em>
           </h2>
-          <p>
-            Follow a parcel from registration to its latest ownership.
-            <br />
-            Everything you need, connected in one workspace.
-          </p>
+          <p>{description}</p>
           <button onClick={() => navigate("properties")}>
             Explore property records <ArrowRight size={17} />
           </button>
@@ -1077,6 +1156,13 @@ function DashboardPage({
           </small>
         </div>
       </section>
+      {data.needsProfile && (
+        <div className="form-error" role="alert">
+          Your account needs an active officer profile with the matching
+          designation. Ask an administrator to link your account in User
+          accounts.
+        </div>
+      )}
       <section className="stats-grid">
         {stats.map((s) => (
           <button
@@ -1099,6 +1185,119 @@ function DashboardPage({
           </button>
         ))}
       </section>
+      {data.work.length > 0 && (
+        <section className="work-section" aria-label="Pending work">
+          <div className="card-heading">
+            <div>
+              <h3>
+                {actor.role === "owner"
+                  ? "Your pending processes"
+                  : "Your work queue"}
+              </h3>
+              <p>
+                Open a record to see its dependencies and available actions.
+                Each queue shows up to eight oldest records.
+              </p>
+            </div>
+          </div>
+          <div className="work-grid">
+            {data.work.map((queue) => (
+              <section className="card work-card" key={queue.resource}>
+                <div className="card-heading">
+                  <h3>{queue.title}</h3>
+                  <span className="queue-count">{queue.count}</span>
+                </div>
+                {queue.rows.length ? (
+                  <div className="related-list">
+                    {queue.rows.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() =>
+                          queue.create
+                            ? create(queue.resource, { property_id: item.id })
+                            : open(queue.resource, item)
+                        }
+                      >
+                        <span className="record-icon">
+                          <Icon name={queue.resource} size={16} />
+                        </span>
+                        <div>
+                          <strong>
+                            {item.survey_no ||
+                              item.document_no ||
+                              nice(
+                                item.service_type ||
+                                  item.transaction_type ||
+                                  item.mutation_type ||
+                                  queue.resource,
+                              )}
+                          </strong>
+                          <small>
+                            {queue.action} · {String(item.id).slice(0, 8)}
+                          </small>
+                        </div>
+                        <ArrowUpRight size={16} />
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="muted">No pending work in this queue.</p>
+                )}
+                <button
+                  className="text-button"
+                  onClick={() =>
+                    navigate(queue.create ? "properties" : queue.resource)
+                  }
+                >
+                  View all {queue.create ? "parcels" : "records"}{" "}
+                  <ArrowRight size={15} />
+                </button>
+              </section>
+            ))}
+          </div>
+        </section>
+      )}
+      {actor.role === "administrator" && (
+        <section className="card registry-coverage">
+          <div className="card-heading">
+            <div>
+              <h3>All registry records</h3>
+              <p>
+                Complete coverage across offices and departments. Manage account
+                links from User accounts.
+              </p>
+            </div>
+          </div>
+          {data.accounts && (
+            <div className="account-summary">
+              <p>
+                <strong>{data.accounts.active}</strong> active logins ·{" "}
+                <strong>{data.accounts.total}</strong> total accounts ·{" "}
+                <strong>{data.accounts.uncovered_officers}</strong> officers
+                without accounts ·{" "}
+                <strong>{data.accounts.unlinked_staff}</strong> staff profiles
+                to link
+              </p>
+              <button
+                className="button secondary small"
+                onClick={manageAccounts}
+              >
+                <UsersRound size={16} />
+                Manage user accounts
+              </button>
+            </div>
+          )}
+          <div className="coverage-grid">
+            {resources.map((resource) => (
+              <button key={resource.key} onClick={() => navigate(resource.key)}>
+                <Icon name={resource.key} size={16} />
+                <span>{resource.title}</span>
+                <strong>{compact(data.counts[resource.key] || 0)}</strong>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
       <div className="dashboard-grid">
         <section className="card property-card">
           <div className="card-heading">
@@ -1249,48 +1448,50 @@ function DashboardPage({
             Explore districts <ArrowRight size={15} />
           </button>
         </section>
-        <section className="card activity-card">
-          <div className="card-heading">
-            <div>
-              <h3>Recent registry activity</h3>
-              <p>A traceable record of changes.</p>
+        {resources.some((r) => r.key === "audit_events") && (
+          <section className="card activity-card">
+            <div className="card-heading">
+              <div>
+                <h3>Recent registry activity</h3>
+                <p>A traceable record of changes.</p>
+              </div>
+              <History size={18} />
             </div>
-            <History size={18} />
-          </div>
-          {data.activity.length ? (
-            <div className="activity-list">
-              {data.activity.map((a) => (
-                <div key={a.id}>
-                  <span className="activity-icon">
-                    <Check size={14} />
-                  </span>
-                  <div>
-                    <strong>
-                      {nice(a.entity_type)} · {nice(a.action)}
-                    </strong>
-                    <small>
-                      {a.username} <span>·</span> {date(a.occurred_at)}
-                    </small>
+            {data.activity.length ? (
+              <div className="activity-list">
+                {data.activity.map((a) => (
+                  <div key={a.id}>
+                    <span className="activity-icon">
+                      <Check size={14} />
+                    </span>
+                    <div>
+                      <strong>
+                        {nice(a.entity_type)} · {nice(a.action)}
+                      </strong>
+                      <small>
+                        {a.username} <span>·</span> {date(a.occurred_at)}
+                      </small>
+                    </div>
+                    <ArrowUpRight size={14} />
                   </div>
-                  <ArrowUpRight size={14} />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <Empty
-              title="Your workspace is ready"
-              description="Authorized audit activity appears here as records change."
-            />
-          )}
-          {resources.some((r) => r.key === "audit_events") && (
-            <button
-              className="text-button"
-              onClick={() => navigate("audit_events")}
-            >
-              Open audit trail <ArrowRight size={15} />
-            </button>
-          )}
-        </section>
+                ))}
+              </div>
+            ) : (
+              <Empty
+                title="Your workspace is ready"
+                description="Authorized audit activity appears here as records change."
+              />
+            )}
+            {resources.some((r) => r.key === "audit_events") && (
+              <button
+                className="text-button"
+                onClick={() => navigate("audit_events")}
+              >
+                Open audit trail <ArrowRight size={15} />
+              </button>
+            )}
+          </section>
+        )}
         <section className="quick-card">
           <span className="eyebrow">MOVE WORK FORWARD</span>
           <h3>
@@ -1315,11 +1516,24 @@ function DashboardPage({
               <ArrowRight size={16} />
             </button>
           )}
-          <button onClick={() => navigate("ownerships")}>
-            <Fingerprint size={19} />
-            <span>Ownership history</span>
-            <ArrowRight size={16} />
-          </button>
+          {resources.some((r) => r.key === "ownerships") && (
+            <button onClick={() => navigate("ownerships")}>
+              <Fingerprint size={19} />
+              <span>Ownership history</span>
+              <ArrowRight size={16} />
+            </button>
+          )}
+          {resources
+            .filter(
+              (r) => r.canWrite && ["surveys", "valuations"].includes(r.key),
+            )
+            .map((resource) => (
+              <button key={resource.key} onClick={() => navigate(resource.key)}>
+                <Icon name={resource.key} />
+                <span>{resource.title}</span>
+                <ArrowRight size={16} />
+              </button>
+            ))}
         </section>
       </div>
     </>
@@ -1963,13 +2177,7 @@ function RecordDrawer({
       (["mutations", "applications"].includes(r.key) &&
         ["approved", "rejected"].includes(row.status)) ||
       (r.key === "encumbrances" && row.status === "released"));
-  const mayReview =
-    row &&
-    ["administrator", "sub_registrar"].includes(actor.role) &&
-    ["transactions", "documents", "mutations", "applications"].includes(
-      r.key,
-    ) &&
-    !finalized;
+  const mayReview = row && r.canReview && !finalized;
   const selectedPropertyId = editing ? data.property_id : row?.property_id;
   const selectedOfficeId =
     row?.office_id ||
@@ -2005,6 +2213,26 @@ function RecordDrawer({
       setEditing(false);
       onChanged();
       onClose();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function completeSurvey() {
+    setBusy(true);
+    setError("");
+    try {
+      setRow(
+        await api<Row>(`/records/surveys/${row!.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ data: { survey_status: "completed" } }),
+        }),
+      );
+      setRefresh((v) => v + 1);
+      onChanged(
+        "Survey completed. The latest completed survey maintains the parcel boundary.",
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -2158,9 +2386,11 @@ function RecordDrawer({
                 ? "After saving, add transfer parties, upload the deed, and verify it before approval."
                 : r.key === "documents"
                   ? "Save the document details first, then upload its digital copy."
-                  : r.key === "properties"
-                    ? "Ownership is assigned through an approved registration transaction."
-                    : "Required fields are marked with an asterisk. Records are validated before saving."}
+                  : r.key === "valuations"
+                    ? "Saving records a finalized assessment under the selected officer. Future assessments are added as new records."
+                    : r.key === "properties"
+                      ? "Ownership is assigned through an approved registration transaction."
+                      : "Required fields are marked with an asterisk. Records are validated before saving."}
             </div>
           </form>
         ) : (
@@ -2262,6 +2492,24 @@ function RecordDrawer({
                   <small className="muted">
                     PDF, PNG or JPEG · maximum 10 MB
                   </small>
+                </section>
+              )}
+              {r.key === "surveys" && r.canWrite && !finalized && (
+                <section className="review-panel">
+                  <h4>Complete your survey</h4>
+                  <p>
+                    Check the measurements and boundary details before
+                    completion. The latest completed survey updates the parcel,
+                    and this survey is then preserved as history.
+                  </p>
+                  <button
+                    className="button primary small"
+                    disabled={busy}
+                    onClick={() => void completeSurvey()}
+                  >
+                    <Check size={16} />
+                    Complete survey
+                  </button>
                 </section>
               )}
               {mayReview && (
@@ -2629,41 +2877,100 @@ function TrainingImportDrawer({
 
 function AccountsDrawer({
   lookups,
+  actor,
   onClose,
   onChanged,
 }: {
   lookups: Lookups;
+  actor: Actor;
   onClose: () => void;
   onChanged: (s?: string) => void;
 }) {
   const [revision, setRevision] = useState(0);
   const accounts = useLoad<Row[]>("/accounts", revision);
   const [adding, setAdding] = useState(false);
-  const [data, setData] = useState<Row>({
+  const [linking, setLinking] = useState<Row | null>(null);
+  const empty = {
     username: "",
     password: "",
     role: "public_viewer",
     owner_id: "",
     officer_id: "",
-  });
+  };
+  const [data, setData] = useState<Row>(empty);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const staff = [
+    "survey_officer",
+    "valuation_officer",
+    "sub_registrar",
+    "bank_verifier",
+    "auditor",
+  ].includes(data.role);
+  const availableLookups = {
+    ...lookups,
+    officers: (lookups.officers || []).filter(
+      (profile) =>
+        !accounts.data?.some(
+          (account) =>
+            account.active &&
+            account.officer_id === profile.id &&
+            account.id !== linking?.id,
+        ),
+    ),
+    owners: (lookups.owners || []).filter(
+      (profile) =>
+        !accounts.data?.some(
+          (account) =>
+            account.active &&
+            account.owner_id === profile.id &&
+            account.id !== linking?.id,
+        ),
+    ),
+  };
   async function save(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError("");
     try {
-      await api("/accounts", { method: "POST", body: JSON.stringify(data) });
-      setAdding(false);
-      setRevision((v) => v + 1);
-      onChanged("User account created.");
-      setData({
-        username: "",
-        password: "",
-        role: "public_viewer",
-        owner_id: "",
-        officer_id: "",
+      await api(linking ? `/accounts/${linking.id}` : "/accounts", {
+        method: linking ? "PATCH" : "POST",
+        body: JSON.stringify(
+          linking
+            ? {
+                owner_id: data.owner_id || null,
+                officer_id: data.officer_id || null,
+              }
+            : data,
+        ),
       });
+      setAdding(false);
+      setLinking(null);
+      setRevision((v) => v + 1);
+      onChanged(linking ? "Account profile linked." : "User account created.");
+      setData(empty);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function remove(id: string) {
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api<{ history_retained: boolean }>(
+        `/accounts/${id}`,
+        { method: "DELETE" },
+      );
+      setRemoving(null);
+      setRevision((v) => v + 1);
+      onChanged(
+        result.history_retained
+          ? "Login access deleted. Audit history preserved."
+          : "Account deleted.",
+      );
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -2673,62 +2980,79 @@ function AccountsDrawer({
   return (
     <Drawer
       title="User accounts"
-      subtitle="Create public read-only accounts or department accounts with specific permissions."
+      subtitle="Create accounts, link officers and owners, and remove login access."
       onClose={onClose}
+      wide
     >
       <div className="drawer-body">
-        {adding ? (
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
+        {adding || linking ? (
           <form onSubmit={save} className="account-form">
-            <label className="field">
-              <span>Username</span>
-              <input
-                required
-                value={data.username}
-                onChange={(e) => setData({ ...data, username: e.target.value })}
-              />
-            </label>
-            <label className="field">
-              <span>Password · at least 12 characters</span>
-              <input
-                type="password"
-                autoComplete="new-password"
-                minLength={12}
-                required
-                value={data.password}
-                onChange={(e) => setData({ ...data, password: e.target.value })}
-              />
-            </label>
-            <label className="field">
-              <span>Role</span>
-              <select
-                value={data.role}
-                onChange={(e) =>
-                  setData({
-                    ...data,
-                    role: e.target.value,
-                    owner_id: "",
-                    officer_id: "",
-                  })
-                }
-              >
-                {[
-                  "administrator",
-                  "public_viewer",
-                  "owner",
-                  "survey_officer",
-                  "valuation_officer",
-                  "sub_registrar",
-                  "bank_verifier",
-                  "auditor",
-                ].map((r) => (
-                  <option value={r} key={r}>
-                    {r === "public_viewer"
-                      ? "Public user · read-only"
-                      : nice(r)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <h3>
+              {linking
+                ? `Link profile · ${linking.username}`
+                : "Create account"}
+            </h3>
+            {!linking && (
+              <>
+                <label className="field">
+                  <span>Username</span>
+                  <input
+                    required
+                    maxLength={100}
+                    value={data.username}
+                    onChange={(e) =>
+                      setData({ ...data, username: e.target.value })
+                    }
+                  />
+                </label>
+                <PasswordField
+                  id="account-password"
+                  placeholder="Enter a password"
+                  maxLength={128}
+                  label="Password · 12–128 characters"
+                  autoComplete="new-password"
+                  value={data.password}
+                  onChange={(value) => setData({ ...data, password: value })}
+                  minLength={12}
+                />
+                <label className="field">
+                  <span>Role</span>
+                  <select
+                    value={data.role}
+                    onChange={(e) =>
+                      setData({
+                        ...data,
+                        role: e.target.value,
+                        owner_id: "",
+                        officer_id: "",
+                      })
+                    }
+                  >
+                    {[
+                      "administrator",
+                      "public_viewer",
+                      "owner",
+                      "survey_officer",
+                      "valuation_officer",
+                      "sub_registrar",
+                      "bank_verifier",
+                      "auditor",
+                    ].map((role) => (
+                      <option value={role} key={role}>
+                        {role === "public_viewer"
+                          ? "Public user · read-only"
+                          : nice(role)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            )}
             {data.role === "owner" && (
               <FieldInput
                 field={{
@@ -2739,17 +3063,12 @@ function AccountsDrawer({
                   required: true,
                 }}
                 value={data.owner_id}
-                lookups={lookups}
+                lookups={availableLookups}
                 data={data}
                 onChange={(v) => setData({ ...data, owner_id: v })}
               />
-            )}{" "}
-            {[
-              "survey_officer",
-              "valuation_officer",
-              "sub_registrar",
-              "auditor",
-            ].includes(data.role) && (
+            )}
+            {staff && (
               <FieldInput
                 field={{
                   key: "officer_id",
@@ -2760,32 +3079,46 @@ function AccountsDrawer({
                   required: true,
                 }}
                 value={data.officer_id}
-                lookups={lookups}
+                lookups={availableLookups}
                 data={data}
                 onChange={(v) => setData({ ...data, officer_id: v })}
               />
-            )}{" "}
-            {error && (
-              <p className="form-error" role="alert">
-                {error}
+            )}
+            {staff && (
+              <p className="muted">
+                Select an active officer with the same designation. Each profile
+                has one active account. Officer email and phone are maintained
+                in Officers.
               </p>
             )}
             <div className="review-actions">
               <button
                 type="button"
                 className="button secondary"
-                onClick={() => setAdding(false)}
+                disabled={busy}
+                onClick={() => {
+                  setAdding(false);
+                  setLinking(null);
+                  setError("");
+                }}
               >
                 Cancel
               </button>
               <button className="button primary" disabled={busy}>
-                Create account
+                {linking ? "Save profile link" : "Create account"}
               </button>
             </div>
           </form>
         ) : (
           <>
-            <button className="button primary" onClick={() => setAdding(true)}>
+            <button
+              className="button primary"
+              onClick={() => {
+                setData(empty);
+                setAdding(true);
+                setError("");
+              }}
+            >
               <Plus size={16} />
               Add user account
             </button>
@@ -2794,24 +3127,136 @@ function AccountsDrawer({
             ) : accounts.error ? (
               <ErrorPanel message={accounts.error} />
             ) : (
-              <div className="accounts-list">
-                {accounts.data?.map((a) => (
-                  <div key={a.id}>
-                    <span className="avatar">
-                      {a.username.slice(0, 2).toUpperCase()}
-                    </span>
-                    <div>
-                      <strong>{a.username}</strong>
-                      <small>
-                        {a.role === "public_viewer"
-                          ? "Public user · read-only"
-                          : nice(a.role)}
-                      </small>
+              <>
+                <div className="accounts-list">
+                  {accounts.data?.map((account) => (
+                    <div key={account.id} className="account-row">
+                      <span className="avatar">
+                        {account.username.slice(0, 2).toUpperCase()}
+                      </span>
+                      <div className="account-identity">
+                        <strong>{account.username}</strong>
+                        <small>
+                          {nice(account.role)} ·{" "}
+                          {account.officer_name ||
+                            account.owner_name ||
+                            (["administrator", "public_viewer"].includes(
+                              account.role,
+                            )
+                              ? "No profile required"
+                              : "Profile link required")}
+                        </small>
+                        {account.office_name && (
+                          <small>{account.office_name}</small>
+                        )}
+                        {(account.email || account.phone) && (
+                          <small>
+                            {[account.email, account.phone]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </small>
+                        )}
+                      </div>
+                      <Badge value={account.active ? "active" : "inactive"} />
+                      {account.active &&
+                        !["administrator", "public_viewer"].includes(
+                          account.role,
+                        ) && (
+                          <button
+                            className="button secondary small"
+                            disabled={busy}
+                            onClick={() => {
+                              setLinking(account);
+                              setData({ ...empty, ...account, password: "" });
+                              setError("");
+                            }}
+                          >
+                            Link profile
+                          </button>
+                        )}
+                      {account.active && account.id !== actor.id && (
+                        <button
+                          className="button danger small"
+                          disabled={busy}
+                          onClick={() => setRemoving(account.id)}
+                        >
+                          Delete account
+                        </button>
+                      )}
+                      {removing === account.id && (
+                        <div className="account-delete-confirm">
+                          <p>
+                            Delete login access for {account.username}? Existing
+                            sessions will stop working. Any audit history will
+                            be preserved.
+                          </p>
+                          <button
+                            className="button danger small"
+                            disabled={busy}
+                            onClick={() => void remove(account.id)}
+                          >
+                            Confirm deletion
+                          </button>
+                          <button
+                            className="button secondary small"
+                            disabled={busy}
+                            onClick={() => setRemoving(null)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    <Badge value={a.active ? "active" : "inactive"} />
+                  ))}
+                </div>
+                <section className="detail-section">
+                  <h3>Officers without an active account</h3>
+                  <p className="muted">
+                    Create a login for the existing profile to keep its work and
+                    office connected.
+                  </p>
+                  <div className="related-list">
+                    {(lookups.officers || [])
+                      .filter(
+                        (profile) =>
+                          profile.active &&
+                          !accounts.data?.some(
+                            (account) =>
+                              account.active &&
+                              account.officer_id === profile.id,
+                          ),
+                      )
+                      .map((profile) => (
+                        <button
+                          key={profile.id}
+                          onClick={() => {
+                            setData({
+                              ...empty,
+                              role: profile.designation || "survey_officer",
+                              officer_id: profile.id,
+                            });
+                            setAdding(true);
+                            setError("");
+                          }}
+                        >
+                          <div>
+                            <strong>{profile.label}</strong>
+                            <small>
+                              {nice(profile.designation)} ·{" "}
+                              {
+                                lookups.offices?.find(
+                                  (office) => office.id === profile.office_id,
+                                )?.label
+                              }
+                            </small>
+                          </div>
+                          <span>Create linked account</span>
+                          <Plus size={16} />
+                        </button>
+                      ))}
                   </div>
-                ))}
-              </div>
+                </section>
+              </>
             )}
           </>
         )}
