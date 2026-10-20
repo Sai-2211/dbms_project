@@ -141,7 +141,7 @@ npm run build
 npm audit --audit-level=high
 ```
 
-The latest verified suites have **28 unit tests and 70 CockroachDB/API integration tests**. Integration tests create and remove only their own disposable `landledger_test_*` databases, using a development SQL user with database-creation permission. Use a local/test CockroachDB instance for these checks. Tests cover relationships, rollback, conflicting transfers, ownership shares, uploads, role/privacy controls, injection inputs, migration, administrator recovery and training import. GitHub Actions repeats unit, integration, build and dependency checks on pushes and pull requests. TypeScript also rejects unused imports and parameters.
+The latest verified suites have **28 unit tests and 71 CockroachDB/API integration tests**. Integration tests create and remove only their own disposable `landledger_test_*` databases, using a development SQL user with database-creation permission. Use a local/test CockroachDB instance for these checks. Tests cover relationships, rollback, conflicting transfers, ownership shares, uploads, role/privacy controls, injection inputs, migration, administrator recovery and training import. GitHub Actions repeats unit, integration, build and dependency checks on pushes and pull requests. TypeScript also rejects unused imports and parameters.
 
 The [verification report](docs/VERIFICATION_REPORT.md) describes coverage and practical limits. The app displays an error when CockroachDB is unavailable; it never substitutes another database or browser storage.
 

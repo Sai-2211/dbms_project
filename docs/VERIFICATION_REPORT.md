@@ -1,6 +1,6 @@
 # Verification and security
 
-Verified 21 October 2026 using Node.js v22.19.0 and a real local CockroachDB 25.4.0 instance. **28 unit tests and 70 integration tests passed**, with no failures or skipped tests. The TypeScript/Vite production build passed. The latest results are summarized in [evidence/verification-summary.json](evidence/verification-summary.json); historical checkpoints remain in Git history.
+Verified 21 October 2026 using Node.js v22.19.0 and a real local CockroachDB 25.4.0 instance. **28 unit tests and 71 integration tests passed**, with no failures or skipped tests. The TypeScript/Vite production build passed. The latest results are summarized in [evidence/verification-summary.json](evidence/verification-summary.json); historical checkpoints remain in Git history.
 
 ## Reproduce the checks
 
@@ -76,6 +76,6 @@ On 13 October 2026, application commit `5af8d9c` was verified after Render deplo
 
 ## Independent tabs, live updates and ER interaction — 21 October 2026
 
-All 28 unit tests, 70 isolated database/API integration tests and the production build pass. New checks cover independent cookies in a shared browser cookie jar, tab-bound signatures, duplicated-tab lock ownership, independent logout, tab-authenticated downloads, opaque committed SSE events, foreign-office/privacy filtering, rollback silence, revoked-session disconnection, stale-write rejection and clean shutdown of active streams.
+All 28 unit tests, 71 isolated database/API integration tests and the production build pass. New checks cover independent cookies in a shared browser cookie jar, tab-bound signatures, duplicated-tab lock ownership, independent logout, tab-authenticated downloads, opaque committed SSE events, foreign-office/privacy filtering, rollback silence, revoked-session disconnection, stale-write rejection and clean shutdown of active streams.
 
 Browser verification used a disposable CockroachDB registry: an administrator and survey officer stayed signed in in separate tabs, survey completion updated the administrator’s already-open property from 100 to 110 m² without refresh, administrator reload retained its login, and survey logout left the administrator signed in. Clicking an ER rectangle did not open attributes; its Inspect attributes button did. Hosted registry data was not used for these writes.

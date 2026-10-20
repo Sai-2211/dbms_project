@@ -8,7 +8,7 @@ Uploads and downloads use the selected tab’s authenticated fetch path. A plain
 
 ## Live views
 
-An authenticated server-sent event stream checks committed CockroachDB audit revisions every 1.5 seconds. A change normally appears after that interval plus the database/network refresh time. The event contains only an opaque revision and an empty refresh message; record data is fetched again through the normal role-scoped APIs. Public subscribers receive invalidation only for their registered-property view. Foreign-office changes and rolled-back transactions do not advance an unrelated user’s scoped revision.
+An authenticated server-sent event stream checks committed CockroachDB audit revisions every 1.5 seconds. A change normally appears after that interval plus the database/network refresh time. The event contains only an opaque revision and an empty refresh message; record data is fetched again through the normal role-scoped APIs. Private registration approvals and other officers’ survey events also invalidate the affected readable property/title views, without granting access to those workflows. Public subscribers receive invalidation only for their registered-property view. Foreign-office changes and rolled-back transactions do not advance an unrelated user’s scoped revision.
 
 The stream rechecks account/profile activity, closes for revoked accounts, sends keepalives, and reconnects after network loss or server restarts. Reconnection and returning focus to a tab refresh its authorized views. The database audit log is shared, so separate API instances and devices observe the same committed changes. This does not depend on a process-local broadcast or browser-only messages.
 

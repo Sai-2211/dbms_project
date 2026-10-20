@@ -29,6 +29,21 @@ export function liveScope(actor: Actor, values: unknown[]) {
       `(a.entity_type='${resource.key}' AND a.entity_id IN (SELECT visible.id FROM ${resource.key} visible WHERE (${predicate})))`,
     );
   }
+  // Private workflow events can change a readable parcel/title. Invalidate that view
+  // without granting access to the underlying transaction or another officer's survey.
+  const property = resourceMap.get("properties")!;
+  if (canRead(actor, property)) {
+    const visibleProperties = scope(
+      actor,
+      property,
+      values,
+      "visible_property",
+    );
+    for (const dependency of ["transactions", "surveys"])
+      conditions.push(
+        `(a.entity_type='${dependency}' AND a.entity_id IN (SELECT dependency.id FROM ${dependency} dependency WHERE dependency.property_id IN (SELECT visible_property.id FROM properties visible_property WHERE (${visibleProperties}))))`,
+      );
+  }
   // Deleted rows no longer join to a resource. Their captured jurisdiction can still invalidate a view.
   if (actor.officer_id) {
     values.push(actor.officer_id);

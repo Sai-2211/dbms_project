@@ -492,6 +492,76 @@ test("concurrent edits reject a stale version rather than overwrite another user
   );
 });
 
+test("upstream approval and survey events refresh related property viewers without granting workflow access", async () => {
+  const bankProfile = await transaction((client) =>
+    insert(client, "officers", {
+      officer_name: "Live bank",
+      designation: "bank_verifier",
+      office_id: property.office_id,
+    }),
+  );
+  const bank = (await transaction((client) =>
+    insert(client, "users", {
+      username: "live-bank",
+      role: "bank_verifier",
+      officer_id: bankProfile.id,
+      password_hash: hashPassword(password),
+    }),
+  )) as Actor;
+  const bankBefore = await liveRevision(bank),
+    surveyBefore = await liveRevision(surveyor);
+  await transaction(async (client) => {
+    const tx = await insert(client, "transactions", {
+      property_id: property.id,
+      office_id: property.office_id,
+      transaction_type: "registration",
+      transaction_date: "2025-01-01",
+      consideration: "0",
+    });
+    await audit(client, admin, "approve", "transactions", tx.id);
+  });
+  assert.notEqual(
+    await liveRevision(bank),
+    bankBefore,
+    "Approval invalidates the bank's readable property/title view",
+  );
+  assert.notEqual(
+    await liveRevision(surveyor),
+    surveyBefore,
+    "Approval invalidates a surveyor's assigned parcel view",
+  );
+  const beforeSurvey = await liveRevision(bank);
+  await transaction(async (client) => {
+    await audit(client, admin, "update", "surveys", survey.id);
+  });
+  assert.notEqual(
+    await liveRevision(bank),
+    beforeSurvey,
+    "Survey measurements invalidate the bank's property view",
+  );
+  const stableBank = await liveRevision(bank),
+    stableSurvey = await liveRevision(surveyor);
+  await transaction(async (client) => {
+    const tx = await insert(client, "transactions", {
+      property_id: foreign.id,
+      office_id: foreign.office_id,
+      transaction_type: "registration",
+      transaction_date: "2025-01-01",
+      consideration: "0",
+    });
+    await audit(client, admin, "approve", "transactions", tx.id);
+  });
+  assert.equal(await liveRevision(bank), stableBank);
+  assert.equal(await liveRevision(surveyor), stableSurvey);
+  const tab = randomUUID(),
+    cookie = (await login(bank.username, tab)).cookie!;
+  assert.equal(
+    (await request("/records/transactions", cookie, tab)).status,
+    403,
+  );
+  assert.equal((await request("/records/surveys", cookie, tab)).status, 403);
+});
+
 test("server shutdown closes active live streams instead of leaving deployment connections hanging", async () => {
   const stream = await openStream(adminCookie, adminTab);
   await stream.next();

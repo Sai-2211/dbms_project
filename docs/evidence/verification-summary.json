@@ -12,8 +12,8 @@
     "skipped": 0
   },
   "integration": {
-    "tests": 70,
-    "passed": 70,
+    "tests": 71,
+    "passed": 71,
     "failed": 0,
     "skipped": 0
   },
@@ -75,6 +75,7 @@
     "er_inspection_button_only": true,
     "stale_write_rejection": true,
     "stream_shutdown": true,
-    "test_writes_environment": "disposable local CockroachDB"
+    "test_writes_environment": "disposable local CockroachDB",
+    "upstream_workflow_refreshes_authorized_parcel_views": true
   }
 }
