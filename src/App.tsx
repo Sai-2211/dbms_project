@@ -48,7 +48,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Actor, Field, Resource } from "../server/resources";
-import { api } from "./api";
+import { api, downloadFile } from "./api";
+import { useLiveUpdates } from "./useLiveUpdates";
 import { csvCell } from "./csv";
 import PublicPortal from "./PublicPortal";
 import Drawer from "./Drawer";
@@ -182,18 +183,27 @@ function useLoad<T>(url: string | null, revision = 0) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const lastUrl = useRef<string | null | undefined>(undefined);
+  const hasData = useRef(false);
   useEffect(() => {
     let active = true;
-    setLoading(true);
+    if (lastUrl.current !== url) {
+      lastUrl.current = url;
+      hasData.current = false;
+      setData(null);
+    }
+    setLoading(!hasData.current);
     setError("");
-    setData(null);
     if (!url) {
       setLoading(false);
       return;
     }
     api<T>(url)
       .then((value) => {
-        if (active) setData(value);
+        if (active) {
+          hasData.current = true;
+          setData(value);
+        }
       })
       .catch((e) => {
         if (active) setError(e.message);
@@ -279,6 +289,19 @@ export default function App() {
         if (e.status !== 401) setBootError(e.message);
       })
       .finally(() => setBooting(false));
+  }, []);
+  useEffect(() => {
+    const expire = () => setActor(null);
+    const refreshed = (event: Event) => {
+      const next = (event as CustomEvent<Actor>).detail;
+      setActor((previous) => (previous?.id === next.id ? next : previous));
+    };
+    window.addEventListener("landledger:session-expired", expire);
+    window.addEventListener("landledger:actor", refreshed);
+    return () => {
+      window.removeEventListener("landledger:session-expired", expire);
+      window.removeEventListener("landledger:actor", refreshed);
+    };
   }, []);
   if (booting)
     return (
@@ -658,6 +681,7 @@ function Workspace({
 }) {
   const [route, setRoute] = useState(location.hash.slice(1) || "home");
   const [revision, setRevision] = useState(0);
+  const liveStatus = useLiveUpdates(() => setRevision((v) => v + 1));
   const [lookups, setLookups] = useState<Lookups>({});
   type RecordFrame = {
     resource: string;
@@ -781,6 +805,13 @@ function Workspace({
             <Brand />
           </button>
           <div className="header-actions">
+            <span className={`live-status ${liveStatus}`} role="status">
+              {liveStatus === "live"
+                ? "Live updates"
+                : liveStatus === "connecting"
+                  ? "Connecting updates"
+                  : "Reconnecting updates"}
+            </span>
             <span className={`connection ${health}`}>
               <i />
               {health === "connected"
@@ -984,6 +1015,7 @@ function Workspace({
             lookups={lookups}
             resources={resources}
             active={!accounts && index === drawers.length - 1}
+            revision={revision}
             onClose={() => setDrawers([])}
             onBack={
               parent
@@ -1031,6 +1063,7 @@ function Workspace({
       {accounts && (
         <AccountsDrawer
           defaults={accountDefaults}
+          liveRevision={revision}
           lookups={lookups}
           actor={actor}
           onClose={() => setAccounts(false)}
@@ -2068,6 +2101,7 @@ function RecordDrawer({
   onCreateRelated,
   onOpenRelated,
   active,
+  revision,
   onBack,
   backLabel,
   navigation,
@@ -2085,6 +2119,7 @@ function RecordDrawer({
   onCreateRelated: (k: string, d?: Row) => void;
   onOpenRelated: (k: string, r: Row) => void;
   active: boolean;
+  revision: number;
   onBack?: () => void;
   backLabel?: string;
   navigation?: ReactNode;
@@ -2102,7 +2137,7 @@ function RecordDrawer({
   const [detailLoading, setDetailLoading] = useState(!create);
   useEffect(() => {
     let alive = true;
-    if (!active || !row?.id) return;
+    if (!active || !row?.id || editing || busy) return;
     api<Row>(`/records/${r.key}/${row.id}`)
       .then((value) => {
         if (alive) {
@@ -2117,7 +2152,10 @@ function RecordDrawer({
         }
       })
       .catch((e) => {
-        if (alive) setError(e.message);
+        if (alive) {
+          setError(e.message);
+          if ([403, 404].includes(e.status)) setRow(undefined);
+        }
       })
       .finally(() => {
         if (alive) setDetailLoading(false);
@@ -2125,7 +2163,7 @@ function RecordDrawer({
     return () => {
       alive = false;
     };
-  }, [r.key, row?.id, refresh, active]);
+  }, [r.key, row?.id, refresh, active, revision, editing, busy]);
   useEffect(() => {
     let alive = true;
     if (!active || !row?.id) return;
@@ -2214,7 +2252,7 @@ function RecordDrawer({
     return () => {
       alive = false;
     };
-  }, [r.key, row?.id, refresh, resources, active]);
+  }, [r.key, row?.id, refresh, resources, active, revision]);
   const finalized =
     row &&
     ((r.key === "transactions" && row.status !== "pending") ||
@@ -2257,7 +2295,11 @@ function RecordDrawer({
         `/records/${r.key}${create ? "" : `/${row!.id}`}`,
         {
           method: create ? "POST" : "PATCH",
-          body: JSON.stringify({ data, officer_id: officerId || undefined }),
+          body: JSON.stringify({
+            data,
+            officer_id: officerId || undefined,
+            ...(!create ? { expected_version: row?._version } : {}),
+          }),
         },
       );
       setRow(value);
@@ -2277,7 +2319,10 @@ function RecordDrawer({
       setRow(
         await api<Row>(`/records/surveys/${row!.id}`, {
           method: "PATCH",
-          body: JSON.stringify({ data: { survey_status: "completed" } }),
+          body: JSON.stringify({
+            data: { survey_status: "completed" },
+            expected_version: row?._version,
+          }),
         }),
       );
       setRefresh((v) => v + 1);
@@ -2544,14 +2589,27 @@ function RecordDrawer({
                           SHA-256 recorded
                         </small>
                       </div>
-                      <a
+                      <button
                         className="button secondary small"
-                        href={`/api/documents/${row.id}/file`}
-                        download
+                        disabled={busy}
+                        onClick={async () => {
+                          setBusy(true);
+                          setError("");
+                          try {
+                            await downloadFile(
+                              `/documents/${row.id}/file`,
+                              row.original_filename || "document",
+                            );
+                          } catch (e) {
+                            setError((e as Error).message);
+                          } finally {
+                            setBusy(false);
+                          }
+                        }}
                       >
                         <ArrowDownToLine size={16} />
                         Download
-                      </a>
+                      </button>
                     </div>
                   ) : (
                     <p className="muted">No digital copy has been uploaded.</p>
@@ -2966,19 +3024,21 @@ function TrainingImportDrawer({
 
 function AccountsDrawer({
   defaults,
+  liveRevision,
   lookups,
   actor,
   onClose,
   onChanged,
 }: {
   defaults?: Row;
+  liveRevision: number;
   lookups: Lookups;
   actor: Actor;
   onClose: () => void;
   onChanged: (s?: string) => void;
 }) {
   const [revision, setRevision] = useState(0);
-  const accounts = useLoad<Row[]>("/accounts", revision);
+  const accounts = useLoad<Row[]>("/accounts", revision + liveRevision);
   const [adding, setAdding] = useState(!!defaults);
   const [linking, setLinking] = useState<Row | null>(null);
   const empty = {

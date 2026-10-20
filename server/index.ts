@@ -15,6 +15,8 @@ import {
   createSession,
   hashPassword,
   setSession,
+  sessionCookieName,
+  requestTab,
   verifyPassword,
 } from "./auth.js";
 import {
@@ -28,6 +30,7 @@ import { accessible, propertyAccess, redact, scope } from "./access.js";
 import { demand, HttpError } from "./errors.js";
 import { uuidPattern, validateRecord } from "./validation.js";
 import { accountLinks } from "./accounts.js";
+import { liveUpdates, closeLiveUpdates } from "./live.js";
 import { dashboard } from "./dashboard.js";
 import { publicPortal } from "./public-portal.js";
 import { validatePublicSignup } from "./signup.js";
@@ -158,7 +161,7 @@ app.post("/api/auth/login", loginLimiter, async (req, res) => {
       "Your linked officer profile is inactive or has a different designation. Contact the administrator.",
       403,
     );
-  setSession(res, createSession(rows[0].id));
+  setSession(res, createSession(rows[0].id, requestTab(req)), req);
   const { id, role, owner_id, officer_id } = rows[0];
   res.json({ id, username: rows[0].username, role, owner_id, officer_id });
 });
@@ -184,11 +187,11 @@ app.post("/api/auth/signup", signupLimiter, async (req, res) => {
     });
     return actor;
   });
-  setSession(res, createSession(actor.id));
+  setSession(res, createSession(actor.id, requestTab(req)), req);
   res.status(201).json(actor);
 });
-app.post("/api/auth/logout", (_req, res) => {
-  res.clearCookie("landledger_session", {
+app.post("/api/auth/logout", (req, res) => {
+  res.clearCookie(sessionCookieName(req), {
     path: "/",
     httpOnly: true,
     sameSite: "strict",
@@ -209,6 +212,7 @@ app.use(
   }),
 );
 app.get("/api/auth/me", (req, res) => res.json(req.actor));
+app.get("/api/events", liveUpdates);
 // Deny department endpoints by default, including new endpoints added in future.
 app.use("/api", (req, _res, next) => {
   demand(
@@ -495,6 +499,13 @@ app.patch("/api/records/:key/:id", async (req, res) => {
       String(req.params.id),
       true,
     );
+    if (req.body?.expected_version !== undefined)
+      demand(
+        typeof req.body.expected_version === "string" &&
+          req.body.expected_version === old._version,
+        "This record changed in another session. Cancel editing to load the latest record before saving again.",
+        409,
+      );
     demand(
       !immutable(r, old),
       "This finalized record is preserved. Create a new record instead.",
@@ -510,7 +521,7 @@ app.patch("/api/records/:key/:id", async (req, res) => {
     const keys = Object.keys(data);
     const values = [...Object.values(data), old.id];
     const { rows } = await client.query(
-      `UPDATE ${r.key} SET ${keys.map((k, i) => `${k}=$${i + 1}`).join(",")},updated_at=now() WHERE id=$${values.length} RETURNING *`,
+      `UPDATE ${r.key} SET ${keys.map((k, i) => `${k}=$${i + 1}`).join(",")},updated_at=now() WHERE id=$${values.length} RETURNING *,updated_at::STRING AS _version`,
       values,
     );
     if (r.key === "officers" && "active" in data) {
@@ -1073,5 +1084,9 @@ const server = app.listen(config.port, config.host, () =>
     `LandLedger API listening on http://${config.host}:${config.port}`,
   ),
 );
-process.on("SIGTERM", () => server.close(() => void pool.end()));
-process.on("SIGINT", () => server.close(() => void pool.end()));
+function shutdown() {
+  closeLiveUpdates();
+  server.close(() => void pool.end());
+}
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);

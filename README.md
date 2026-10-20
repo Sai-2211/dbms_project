@@ -21,7 +21,7 @@ This is a course demonstration. Records and sample attachments are fictional; th
 
 ## Stack
 
-React 19, TypeScript and Vite on the frontend; Node.js 22 and Express 5 on the backend; CockroachDB 25.4.0 through the PostgreSQL-compatible `pg` driver. Documents have private file storage and SHA-256 metadata. The app uses serializable transactions, parameterized SQL, foreign keys, validation, salted password hashes and signed HTTP-only session cookies.
+React 19, TypeScript and Vite on the frontend; Node.js 22 and Express 5 on the backend; CockroachDB 25.4.0 through the PostgreSQL-compatible `pg` driver. Documents have private file storage and SHA-256 metadata. The app uses serializable transactions, parameterized SQL, foreign keys, validation, salted password hashes and signed, tab-specific HTTP-only session cookies.
 
 ## Local setup
 
@@ -86,6 +86,10 @@ Visitors can choose **Public user → Create account**. Signup creates only `pub
 
 Public accounts see registered parcels' survey number, type, area, district/state and registration office/date/status. Precise locations, owner identities/contact details, documents, claims, finances, pending/rejected parcels, accounts, audits and schema are hidden; public bulk export is unavailable. [Public signup and privacy](docs/PUBLIC_SIGNUP.md) explains the policy and implementation.
 
+## Multiple users and live updates
+
+Each browser tab has an independent login, so an administrator and survey officer can work side by side. Sign-out affects that tab only. Authorized views refresh after committed changes through a reconnecting live stream; open drafts are preserved and stale saves are rejected. Refresh existing tabs and sign in separately once after this update. See [multi-user sessions and synchronization](docs/MULTI_USER.md).
+
 ## Sample data and demonstrations
 
 Choose one dataset approach for the database you intend to use:
@@ -137,7 +141,7 @@ npm run build
 npm audit --audit-level=high
 ```
 
-The latest verified suites have **25 unit tests and 62 CockroachDB/API integration tests**. Integration tests create and remove only their own disposable `landledger_test_*` databases, using a development SQL user with database-creation permission. Use a local/test CockroachDB instance for these checks. Tests cover relationships, rollback, conflicting transfers, ownership shares, uploads, role/privacy controls, injection inputs, migration, administrator recovery and training import. GitHub Actions repeats unit, integration, build and dependency checks on pushes and pull requests. TypeScript also rejects unused imports and parameters.
+The latest verified suites have **28 unit tests and 70 CockroachDB/API integration tests**. Integration tests create and remove only their own disposable `landledger_test_*` databases, using a development SQL user with database-creation permission. Use a local/test CockroachDB instance for these checks. Tests cover relationships, rollback, conflicting transfers, ownership shares, uploads, role/privacy controls, injection inputs, migration, administrator recovery and training import. GitHub Actions repeats unit, integration, build and dependency checks on pushes and pull requests. TypeScript also rejects unused imports and parameters.
 
 The [verification report](docs/VERIFICATION_REPORT.md) describes coverage and practical limits. The app displays an error when CockroachDB is unavailable; it never substitutes another database or browser storage.
 

@@ -21,6 +21,7 @@ import type {
   PublicProperty,
 } from "../shared/public";
 import { api } from "./api";
+import { useLiveUpdates } from "./useLiveUpdates";
 
 const title = (value: string) =>
   value.replace(/_/g, " ").replace(/^./, (s) => s.toUpperCase());
@@ -53,6 +54,27 @@ export default function PublicPortal({
   const [error, setError] = useState("");
   const [detailLoading, setDetailLoading] = useState(false);
   const [revision, setRevision] = useState(0);
+  const liveStatus = useLiveUpdates(() => setRevision((v) => v + 1));
+  const loaded = useRef(false);
+  const detailId = detail?.id;
+  useEffect(() => {
+    setDetail(null);
+  }, [search, district, page]);
+  useEffect(() => {
+    if (!detailId) return;
+    const abort = new AbortController();
+    api<PublicProperty>(`/public/properties/${detailId}`, {
+      signal: abort.signal,
+    })
+      .then(setDetail)
+      .catch((e) => {
+        if (!abort.signal.aborted) {
+          setDetail(null);
+          setError(e.message);
+        }
+      });
+    return () => abort.abort();
+  }, [detailId, revision]);
   const detailHeading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (detail) detailHeading.current?.focus();
@@ -68,9 +90,7 @@ export default function PublicPortal({
   }, [revision]);
   useEffect(() => {
     const abort = new AbortController();
-    setLoading(true);
-    setRecords(null);
-    setDetail(null);
+    setLoading(!loaded.current);
     setError("");
     const params = new URLSearchParams({
       q: search,
@@ -78,7 +98,10 @@ export default function PublicPortal({
       page: String(page),
     });
     api<PublicPage>(`/public/properties?${params}`, { signal: abort.signal })
-      .then(setRecords)
+      .then((value) => {
+        loaded.current = true;
+        setRecords(value);
+      })
       .catch((e) => {
         if (!abort.signal.aborted) setError(e.message);
       })
@@ -117,6 +140,9 @@ export default function PublicPortal({
       <header className="public-topbar">
         {brand}
         <div className="public-account">
+          <span className={`live-status ${liveStatus}`} role="status">
+            {liveStatus === "live" ? "Live updates" : "Connecting updates"}
+          </span>
           <span>
             <strong>Public user</strong>
             <small>{actor.username}</small>

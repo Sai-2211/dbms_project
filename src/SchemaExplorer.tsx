@@ -262,7 +262,15 @@ export default function SchemaExplorer() {
           <select
             aria-label="Explore table"
             value={selected}
-            onChange={(e) => focusTable(e.target.value)}
+            onChange={(e) => {
+              setSelected(e.target.value);
+              void flow?.fitView({
+                nodes: [{ id: e.target.value }],
+                padding: 0.8,
+                maxZoom: 1.15,
+                duration: 350,
+              });
+            }}
           >
             {schema.tables.map((t) => (
               <option key={t.name} value={t.name}>
@@ -318,7 +326,7 @@ export default function SchemaExplorer() {
             edges={edges}
             nodeTypes={nodeTypes}
             onNodesChange={onNodesChange}
-            onNodeClick={(_event, node) => inspectTable(node.id)}
+            onNodeClick={(_event, node) => setSelected(node.id)}
             onInit={setFlow}
             fitView
             fitViewOptions={{ padding: 0.12 }}
@@ -341,83 +349,6 @@ export default function SchemaExplorer() {
             Drag tables to arrange · pan or zoom to explore
           </div>
         </div>
-        <aside className="schema-inspector" aria-label="Selected table details">
-          {table && (
-            <>
-              <span className="eyebrow">ENTITY DETAILS</span>
-              <h2>{title(table.name)}</h2>
-              <code className="schema-table-name">public.{table.name}</code>
-              <h3>
-                Attributes <span>{table.columns.length}</span>
-              </h3>
-              <div className="schema-attributes">
-                {table.columns.map((c) => (
-                  <div key={c.name}>
-                    <div>
-                      <b className={c.primary ? "key-primary" : "key-foreign"}>
-                        {c.primary ? "PK" : c.foreign ? "FK" : "·"}
-                      </b>
-                      <code>{c.name}</code>
-                    </div>
-                    <small>
-                      {c.type} · {c.nullable ? "nullable" : "required"}
-                    </small>
-                    {c.default && (
-                      <small title={c.default}>Default: {c.default}</small>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <h3>
-                Relationships <span>{relations.length}</span>
-              </h3>
-              {relations.map((r) => (
-                <button
-                  className="schema-relationship"
-                  key={`${r.source}-${r.name}`}
-                  onClick={() =>
-                    focusTable(r.source === selected ? r.target : r.source)
-                  }
-                >
-                  <Network size={15} />
-                  <span>
-                    <strong>
-                      {r.source}.{r.sourceColumns.join(",")}
-                    </strong>
-                    <small>
-                      → {r.target}.{r.targetColumns.join(",")}
-                      <br />
-                      Each child: {r.optional ? "0..1" : "1"} parent · each
-                      parent: 0..{r.childMaximum} children
-                      <br />
-                      Delete: {r.deleteRule}
-                    </small>
-                  </span>
-                </button>
-              ))}
-              <details>
-                <summary>
-                  Database constraints ({table.constraints.length})
-                </summary>
-                {table.constraints.map((c) => (
-                  <div className="schema-constraint" key={c.name}>
-                    <b>{c.type}</b>
-                    <code>{c.details}</code>
-                    <small>
-                      {c.validated
-                        ? "Validated by database"
-                        : "Not yet validated"}
-                    </small>
-                  </div>
-                ))}
-              </details>
-              <details>
-                <summary>Table SQL & indexes</summary>
-                <pre>{table.ddl}</pre>
-              </details>
-            </>
-          )}
-        </aside>
         {inspection.length > 0 && (
           <Drawer
             title={`${title(selected)} attributes`}

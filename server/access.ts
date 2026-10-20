@@ -129,7 +129,7 @@ export async function accessible(
   const values: unknown[] = [id];
   const predicate = scope(actor, resource, values);
   const { rows } = await client.query(
-    `SELECT r.* FROM ${resource.key} r WHERE r.id=$1 AND ${predicate}${lock ? " FOR UPDATE" : ""}`,
+    `SELECT r.*${resource.key === "audit_events" ? "" : ",r.updated_at::STRING AS _version"} FROM ${resource.key} r WHERE r.id=$1 AND ${predicate}${lock ? " FOR UPDATE" : ""}`,
     values,
   );
   demand(rows[0], "Record not found or inaccessible.", 404);

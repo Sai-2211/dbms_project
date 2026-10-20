@@ -1,6 +1,6 @@
 # Verification and security
 
-Verified 20 October 2026 using Node.js v22.19.0 and a real local CockroachDB 25.4.0 instance. **25 unit tests and 62 integration tests passed**, with no failures or skipped tests. The TypeScript/Vite production build passed. The latest results are summarized in [evidence/verification-summary.json](evidence/verification-summary.json); historical checkpoints remain in Git history.
+Verified 21 October 2026 using Node.js v22.19.0 and a real local CockroachDB 25.4.0 instance. **28 unit tests and 70 integration tests passed**, with no failures or skipped tests. The TypeScript/Vite production build passed. The latest results are summarized in [evidence/verification-summary.json](evidence/verification-summary.json); historical checkpoints remain in Git history.
 
 ## Reproduce the checks
 
@@ -72,3 +72,10 @@ The production build, 25 unit tests and 62 isolated CockroachDB/API integration 
 Nested details use a preserved panel stack, breadcrumbs and Back; authorized reference fields open related records, and office/district/officer views list related work. ER attribute buttons open the live schema inspector directly, including on narrow screens. Additional integration checks cover atomic officer/account creation, office/designation links, duplicate rollback, single-profile login assignment under concurrent requests and synchronized deactivation/session rejection. See [ROLE_TESTING.md](ROLE_TESTING.md).
 
 On 13 October 2026, application commit `5af8d9c` was verified after Render deployment using the authorized administrator session. Property → ownership → owner navigation, breadcrumb return, related-entry Cancel, office → officer work listings, new officer-account fields and existing-profile preselection passed. The visible ER inspector displayed live attributes and supported linked-table Back navigation; the catalog contained 18 tables and 37 foreign keys. Hosted records and credentials were not changed during these checks.
+
+
+## Independent tabs, live updates and ER interaction — 21 October 2026
+
+All 28 unit tests, 70 isolated database/API integration tests and the production build pass. New checks cover independent cookies in a shared browser cookie jar, tab-bound signatures, duplicated-tab lock ownership, independent logout, tab-authenticated downloads, opaque committed SSE events, foreign-office/privacy filtering, rollback silence, revoked-session disconnection, stale-write rejection and clean shutdown of active streams.
+
+Browser verification used a disposable CockroachDB registry: an administrator and survey officer stayed signed in in separate tabs, survey completion updated the administrator’s already-open property from 100 to 110 m² without refresh, administrator reload retained its login, and survey logout left the administrator signed in. Clicking an ER rectangle did not open attributes; its Inspect attributes button did. Hosted registry data was not used for these writes.

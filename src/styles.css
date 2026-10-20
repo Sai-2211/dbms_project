@@ -2942,3 +2942,27 @@ textarea {
 .account-summary p {
   margin: 0;
 }
+.live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #47614c;
+  white-space: nowrap;
+}
+.live-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #84927c;
+}
+.live-status.live::before {
+  background: #4c8956;
+}
+.live-status.reconnecting::before {
+  background: #b08634;
+}
+.schema-workspace {
+  grid-template-columns: minmax(0, 1fr);
+}

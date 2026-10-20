@@ -1,19 +1,19 @@
 {
-  "verified_on": "2026-10-20",
+  "verified_on": "2026-10-21",
   "runtime": {
     "node": "v22.19.0",
     "database": "CockroachDB 25.4.0",
     "database_environment": "isolated local test databases"
   },
   "unit": {
-    "tests": 25,
-    "passed": 25,
+    "tests": 28,
+    "passed": 28,
     "failed": 0,
     "skipped": 0
   },
   "integration": {
-    "tests": 62,
-    "passed": 62,
+    "tests": 70,
+    "passed": 70,
     "failed": 0,
     "skipped": 0
   },
@@ -31,7 +31,7 @@
     "training_dataset_sha256": "4ebb35224ef2903d07758cbb546e6843c64e469b327608eb0d02fe470a255b21",
     "sample_pdf_sha256": "823e7af77410435744e3137de2d19437aad1bb8db26221f23963d86c7c6d0d53"
   },
-  "scope": "Office-scoped role access, assigned survey work, private owner redaction, administrator account deletion, atomic officer/account creation, profile repair and idempotent provisioning. The hosted profile checks and requested accounts were updated while preserving all existing usernames and password hashes. Application deployment is a separate step.",
+  "scope": "Independent browser-tab sessions and authenticated live updates, preserving the previously deployed office-scoped roles, accounts and dashboards. New writes were tested only in disposable local databases; no hosted registry data or credentials changed for this follow-up.",
   "repository_cleanup_checkpoint": {
     "tracked_files_before": 97,
     "tracked_files_after": 65,
@@ -66,5 +66,15 @@
     "hosted_officer_accounts_complete": true,
     "existing_credentials_preserved": true,
     "deleted_logins_stay_disabled_after_officer_reactivation": true
+  },
+  "multi_user_verification": {
+    "verified_on": "2026-10-21",
+    "independent_tab_sessions": true,
+    "live_property_refresh_in_browser": true,
+    "tab_reload_and_independent_logout": true,
+    "er_inspection_button_only": true,
+    "stale_write_rejection": true,
+    "stream_shutdown": true,
+    "test_writes_environment": "disposable local CockroachDB"
   }
 }
