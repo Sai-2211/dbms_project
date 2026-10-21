@@ -139,7 +139,7 @@ app.post("/api/auth/login", loginLimiter, async (req, res) => {
     "Enter a username and password.",
   );
   const { rows } = await pool.query(
-    "SELECT u.* FROM users u LEFT JOIN officers o ON o.id=u.officer_id WHERE u.username=$1 AND u.active=true AND (u.officer_id IS NULL OR o.active=true)",
+    "SELECT u.*,n.owner_name FROM users u LEFT JOIN officers o ON o.id=u.officer_id LEFT JOIN owners n ON n.id=u.owner_id AND u.role='owner' WHERE u.username=$1 AND u.active=true AND (u.officer_id IS NULL OR o.active=true)",
     [username.trim().toLowerCase()],
   );
   const correct = verifyPassword(password, rows[0]?.password_hash ?? dummyHash);
@@ -162,8 +162,15 @@ app.post("/api/auth/login", loginLimiter, async (req, res) => {
       403,
     );
   setSession(res, createSession(rows[0].id, requestTab(req)), req);
-  const { id, role, owner_id, officer_id } = rows[0];
-  res.json({ id, username: rows[0].username, role, owner_id, officer_id });
+  const { id, role, owner_id, officer_id, owner_name } = rows[0];
+  res.json({
+    id,
+    username: rows[0].username,
+    role,
+    owner_id,
+    officer_id,
+    owner_name,
+  });
 });
 app.post("/api/auth/signup", signupLimiter, async (req, res) => {
   const { username, password } = validatePublicSignup(req.body);

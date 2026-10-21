@@ -179,6 +179,65 @@ const statusKey = (r: Meta) =>
     ].includes(f.key),
   )?.key;
 
+const ownerRecordCopy: Record<string, { title: string; description: string }> =
+  {
+    properties: {
+      title: "Your properties",
+      description:
+        "Your land parcels and registration progress, all in one place.",
+    },
+    transactions: {
+      title: "Your property transactions",
+      description:
+        "Track transactions and registration progress for your properties.",
+    },
+    documents: {
+      title: "Your property documents",
+      description:
+        "View documents and verification updates for your properties.",
+    },
+    surveys: {
+      title: "Your property surveys",
+      description:
+        "Follow survey schedules and boundary records for your properties.",
+    },
+    valuations: {
+      title: "Your property valuations",
+      description: "View recorded assessments and values for your properties.",
+    },
+    tax_payments: {
+      title: "Your property tax payments",
+      description: "Track tax payments and receipts linked to your properties.",
+    },
+    encumbrances: {
+      title: "Your property encumbrances",
+      description:
+        "Review claims and encumbrances recorded against your properties.",
+    },
+    mutations: {
+      title: "Your property mutations",
+      description:
+        "Track ownership changes and mutation requests for your properties.",
+    },
+    applications: {
+      title: "Your applications",
+      description:
+        "Follow your service applications and their review progress.",
+    },
+    certificates: {
+      title: "Your property certificates",
+      description:
+        "View certificate requests and issued certificates for your properties.",
+    },
+    ownerships: {
+      title: "Your property ownerships",
+      description: "Review ownership shares and history for your properties.",
+    },
+  };
+const accountName = (actor: Actor) =>
+  (actor.role === "owner" && actor.owner_name?.trim()) ||
+  actor.username.split("@")[0];
+
 function useLoad<T>(url: string | null, revision = 0) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
@@ -768,6 +827,16 @@ function Workspace({
     notify(message);
   }
   const current = resources.find((r) => r.key === route);
+  const displayName = accountName(actor);
+  const initials =
+    actor.role === "owner"
+      ? displayName
+          .split(/\s+/)
+          .slice(0, 2)
+          .map((part) => part[0])
+          .join("")
+          .toUpperCase()
+      : actor.username.slice(0, 2).toUpperCase();
   function openAccount(defaults?: Row) {
     setAccountDefaults(defaults);
     setAccounts(true);
@@ -825,18 +894,20 @@ function Workspace({
               className="account-button"
               onClick={() => setUtility((v) => !v)}
             >
-              <span className="avatar">
-                {actor.username.slice(0, 2).toUpperCase()}
-              </span>
+              <span className="avatar">{initials}</span>
               <span>
-                <strong>{actor.username.split("@")[0]}</strong>
+                <strong title={displayName}>{displayName}</strong>
                 <small>{nice(actor.role)}</small>
               </span>
               <ChevronDown size={15} />
             </button>
             {utility && (
               <div className="utility-menu">
-                <strong>Workspace tools</strong>
+                <strong>
+                  {actor.role === "owner"
+                    ? `Signed in as ${actor.username}`
+                    : "Workspace tools"}
+                </strong>
                 {resources
                   .filter((r) =>
                     [
@@ -849,7 +920,9 @@ function Workspace({
                   .map((r) => (
                     <button key={r.key} onClick={() => navigate(r.key)}>
                       <Icon name={r.key} />
-                      {r.title}
+                      {actor.role === "owner"
+                        ? ownerRecordCopy[r.key]?.title || r.title
+                        : r.title}
                     </button>
                   ))}
                 {actor.role === "administrator" && (
@@ -924,7 +997,11 @@ function Workspace({
                 >
                   <Icon name={key} size={16} />
                   <span>
-                    {key === "tax_payments" ? "Tax payments" : nice(key)}
+                    {actor.role === "owner" && key === "properties"
+                      ? "Your properties"
+                      : key === "tax_payments"
+                        ? "Tax payments"
+                        : nice(key)}
                   </span>
                 </button>
               );
@@ -965,6 +1042,7 @@ function Workspace({
         ) : current ? (
           <RecordsPage
             key={current.key}
+            actor={actor}
             resource={current}
             revision={revision}
             lookups={lookups}
@@ -1116,6 +1194,7 @@ function DashboardPage({
   if (error) return <ErrorPanel message={error} />;
   if (!data) return null;
   const total = Number(data.properties);
+  const isOwner = actor.role === "owner";
   let running = 0;
   const segments = data.types
     .map((t) => {
@@ -1126,29 +1205,30 @@ function DashboardPage({
     .join(",");
   const generalStats = [
     {
-      label: "Total properties",
+      label: isOwner ? "Your properties" : "Total properties",
       value: compact(data.properties),
       note: `${data.registered} registered parcels`,
       icon: Layers3,
       route: "properties",
     },
     {
-      label:
-        actor.role === "owner" ? "Your owner profile" : "Registered owners",
-      value: compact(data.owners),
-      note: "Connected ownership records",
-      icon: UsersRound,
-      route: "owners",
+      label: isOwner ? "Your applications" : "Registered owners",
+      value: compact(isOwner ? data.counts.applications : data.owners),
+      note: isOwner
+        ? "Service requests submitted by you"
+        : "Connected ownership records",
+      icon: isOwner ? ClipboardList : UsersRound,
+      route: isOwner ? "applications" : "owners",
     },
     {
-      label: "Pending transactions",
+      label: isOwner ? "Your pending transactions" : "Pending transactions",
       value: compact(data.pending),
       note: "Awaiting review & approval",
       icon: FileCheck2,
       route: "transactions",
     },
     {
-      label: "Tax payments recorded",
+      label: isOwner ? "Your property tax payments" : "Tax payments recorded",
       value: money(data.tax),
       note: "Total receipts marked paid",
       icon: Wallet,
@@ -1161,7 +1241,7 @@ function DashboardPage({
       "Oversee every office, account, approval and registry record.",
     ],
     owner: [
-      "Owner dashboard",
+      "Your dashboard",
       "Your properties, applications and registration progress.",
     ],
     sub_registrar: [
@@ -1236,21 +1316,38 @@ function DashboardPage({
           )}
         </div>
       </div>
-      <section className="welcome-banner">
+      <section className={`welcome-banner${isOwner ? " owner-welcome" : ""}`}>
         <div>
           <span className="eyebrow light">
-            {data.profile
-              ? `${data.profile.officer_name} · ${data.profile.office_name}`
-              : nice(actor.role)}
+            {isOwner
+              ? "Your owner workspace"
+              : data.profile
+                ? `${data.profile.officer_name} · ${data.profile.office_name}`
+                : nice(actor.role)}
           </span>
           <h2>
-            Good records.
-            <br />
-            <em>Confident decisions.</em>
+            {isOwner ? (
+              <>
+                Welcome back,
+                <br />
+                <em>{accountName(actor)}.</em>
+              </>
+            ) : (
+              <>
+                Good records.
+                <br />
+                <em>Confident decisions.</em>
+              </>
+            )}
           </h2>
-          <p>{description}</p>
+          <p>
+            {isOwner
+              ? `${total} ${total === 1 ? "property" : "properties"} in your workspace · ${data.registered} registered. Keep track of your records and requests here.`
+              : description}
+          </p>
           <button onClick={() => navigate("properties")}>
-            Explore property records <ArrowRight size={17} />
+            {isOwner ? "View your properties" : "Explore property records"}{" "}
+            <ArrowRight size={17} />
           </button>
         </div>
         <div className="banner-art">
@@ -1415,8 +1512,16 @@ function DashboardPage({
         <section className="card property-card">
           <div className="card-heading">
             <div>
-              <h3>Recently added properties</h3>
-              <p>The latest parcels in your registry.</p>
+              <h3>
+                {isOwner
+                  ? "Your recent properties"
+                  : "Recently added properties"}
+              </h3>
+              <p>
+                {isOwner
+                  ? "The latest parcels linked to your ownership and applications."
+                  : "The latest parcels in your registry."}
+              </p>
             </div>
             <button
               className="text-button"
@@ -1474,13 +1579,20 @@ function DashboardPage({
               </table>
             </div>
           ) : (
-            <Empty description="Create a property to begin building the registry." />
+            <Empty
+              title={isOwner ? "No properties linked yet" : undefined}
+              description={
+                isOwner
+                  ? "Properties you own or apply to register will appear here."
+                  : "Create a property to begin building the registry."
+              }
+            />
           )}
         </section>
         <section className="card type-card">
           <div className="card-heading">
             <div>
-              <h3>Property mix</h3>
+              <h3>{isOwner ? "Your property mix" : "Property mix"}</h3>
               <p>How your registered parcels are used.</p>
             </div>
             <Leaf size={18} />
@@ -1525,8 +1637,14 @@ function DashboardPage({
         <section className="card district-card">
           <div className="card-heading">
             <div>
-              <h3>Across districts</h3>
-              <p>Property distribution by jurisdiction.</p>
+              <h3>
+                {isOwner ? "Your properties by district" : "Across districts"}
+              </h3>
+              <p>
+                {isOwner
+                  ? "Where your parcels are located."
+                  : "Property distribution by jurisdiction."}
+              </p>
             </div>
             <MapPinned size={18} />
           </div>
@@ -1654,6 +1772,7 @@ function DashboardPage({
 }
 
 function RecordsPage({
+  actor,
   resource: r,
   revision,
   lookups,
@@ -1662,6 +1781,7 @@ function RecordsPage({
   onRefresh,
   navigate,
 }: {
+  actor: Actor;
   resource: Meta;
   revision: number;
   lookups: Lookups;
@@ -1692,6 +1812,8 @@ function RecordsPage({
     revision,
   );
   const sk = statusKey(r);
+  const ownerCopy = actor.role === "owner" ? ownerRecordCopy[r.key] : undefined;
+  const title = ownerCopy?.title || r.title;
   const sf = r.fields.find((f) => f.key === sk);
   const secondary =
     r.key === "properties"
@@ -1733,13 +1855,13 @@ function RecordsPage({
           <div className="breadcrumb">
             <Home size={13} />
             Workspace<span>/</span>
-            {r.title}
+            {title}
           </div>
           <h1>
-            {r.title}
+            {title}
             <span>.</span>
           </h1>
-          <p>{r.description}</p>
+          <p>{ownerCopy?.description || r.description}</p>
         </div>
         <div className="heading-actions">
           {secondary && (
@@ -1748,7 +1870,9 @@ function RecordsPage({
               onClick={() => navigate(secondary)}
             >
               <Icon name={secondary} />
-              {nice(secondary)}
+              {actor.role === "owner"
+                ? ownerRecordCopy[secondary]?.title || nice(secondary)
+                : nice(secondary)}
             </button>
           )}
           {r.canWrite && (
@@ -1767,10 +1891,10 @@ function RecordsPage({
           <div className="search-field">
             <Search size={18} />
             <input
-              aria-label={`Search ${r.title}`}
+              aria-label={`Search ${title.toLowerCase()}`}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={`Search ${r.title.toLowerCase()}…`}
+              placeholder={`Search ${title.toLowerCase()}…`}
             />
             {query && (
               <button aria-label="Clear search" onClick={() => setQuery("")}>
@@ -1889,12 +2013,18 @@ function RecordsPage({
             title={
               search || status
                 ? "No matching records"
-                : `No ${r.title.toLowerCase()} yet`
+                : ownerCopy
+                  ? `No ${r.title.toLowerCase()} linked to your account yet`
+                  : `No ${r.title.toLowerCase()} yet`
             }
             description={
               search || status
                 ? "Try a different search or status filter."
-                : `Add a ${r.singular.toLowerCase()} to start this section.`
+                : ownerCopy
+                  ? r.key === "properties"
+                    ? "Properties you own or apply to register will appear here."
+                    : "Records linked to your properties and requests will appear here."
+                  : `Add a ${r.singular.toLowerCase()} to start this section.`
             }
             action={
               r.canWrite && !search && !status ? (

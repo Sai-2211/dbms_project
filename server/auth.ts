@@ -101,7 +101,8 @@ export async function authenticatedActor(
   const id = token && readSession(token, requestTab(req));
   if (!id) throw new HttpError(401, "Please sign in to continue.");
   const { rows } = await pool.query(
-    `SELECT u.id,u.username,u.role,u.owner_id,u.officer_id FROM users u
+    `SELECT u.id,u.username,u.role,u.owner_id,u.officer_id,n.owner_name FROM users u
+      LEFT JOIN owners n ON n.id=u.owner_id AND u.role='owner'
       WHERE u.id=$1 AND u.active=true AND (u.officer_id IS NULL OR EXISTS(
         SELECT 1 FROM officers o WHERE o.id=u.officer_id AND o.active=true AND o.designation=u.role))`,
     [id],

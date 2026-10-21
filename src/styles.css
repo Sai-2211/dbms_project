@@ -320,6 +320,7 @@ a {
   text-align: left;
 }
 .avatar {
+  flex-shrink: 0;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -334,6 +335,10 @@ a {
   display: block;
   font-size: 11px;
   font-weight: 650;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .account-button small {
   display: block;
@@ -360,6 +365,7 @@ a {
   text-transform: uppercase;
   letter-spacing: 1px;
   padding: 10px;
+  overflow-wrap: anywhere;
 }
 .utility-menu button {
   display: flex;
@@ -523,6 +529,12 @@ a {
 .welcome-banner h2 em {
   font-style: normal;
   color: #d4e5b4;
+}
+.owner-welcome > div:first-child {
+  position: relative;
+  z-index: 1;
+  max-width: 52%;
+  overflow-wrap: anywhere;
 }
 .welcome-banner p {
   font-size: 10px;
@@ -1870,6 +1882,9 @@ textarea {
   }
   .welcome-banner > div:first-child {
     z-index: 1;
+  }
+  .owner-welcome > div:first-child {
+    max-width: 100%;
   }
   .stats-grid {
     grid-template-columns: 1fr 1fr;

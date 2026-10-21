@@ -13,6 +13,7 @@ export type Actor = {
   role: Role;
   owner_id: string | null;
   officer_id: string | null;
+  owner_name?: string | null;
 };
 export type Field = {
   key: string;
