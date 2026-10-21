@@ -51,6 +51,7 @@ import type { Actor, Field, Resource } from "../server/resources";
 import { api, downloadFile } from "./api";
 import { useLiveUpdates } from "./useLiveUpdates";
 import { csvCell } from "./csv";
+import { updateRecordField } from "./recordForm";
 import PublicPortal from "./PublicPortal";
 import Drawer from "./Drawer";
 const SchemaExplorer = lazy(() => import("./SchemaExplorer"));
@@ -2557,36 +2558,15 @@ function RecordDrawer({
                     data={data}
                     lookups={lookups}
                     onChange={(v) =>
-                      setData((current) => ({
-                        ...current,
-                        [f.key]: v,
-                        ...(f.key === "district_id" ? { office_id: "" } : {}),
-                        ...(f.key === "property_id"
-                          ? {
-                              ...(r.fields.some(
-                                (x) => x.key === "transaction_id",
-                              )
-                                ? { transaction_id: "" }
-                                : {}),
-                              ...(r.fields.some((x) => x.key === "document_id")
-                                ? { document_id: "" }
-                                : {}),
-                              ...(r.fields.some(
-                                (x) => x.key === "application_id",
-                              )
-                                ? { application_id: "" }
-                                : {}),
-                              ...(r.key === "transactions"
-                                ? {
-                                    office_id:
-                                      lookups.properties?.find(
-                                        (p) => p.id === v,
-                                      )?.office_id || "",
-                                  }
-                                : {}),
-                            }
-                          : {}),
-                      }))
+                      setData((current) =>
+                        updateRecordField(
+                          r,
+                          current,
+                          f.key,
+                          v,
+                          lookups.properties,
+                        ),
+                      )
                     }
                   />
                 ))}
