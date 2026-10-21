@@ -976,6 +976,67 @@ async function uploadPdf(id: string, cookie: string) {
   assert.equal(response.status, 200);
 }
 
+test("creating an owner automatically creates a usable linked login and deletion retains its audit identity", async () => {
+  const admin = await login("test-admin");
+  const created = await request("/records/owners", admin, "POST", {
+    data: {
+      owner_name: "Automatic Owner QA",
+      identification_no: randomUUID(),
+      address: "Test address",
+    },
+  });
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  const credentials = created.body.created_account;
+  assert.match(credentials.username, /^owner\d+$/);
+  const signed = await request("/auth/login", undefined, "POST", {
+    username: credentials.username,
+    password: credentials.password,
+  });
+  assert.equal(signed.status, 200);
+  assert.equal(signed.body.owner_id, created.body.id);
+  assert.equal(signed.body.owner_name, "Automatic Owner QA");
+  const listed = (await request("/accounts", admin)).body.find(
+    (account: any) => account.id === signed.body.id,
+  );
+  assert.equal(listed.owner_name, "Automatic Owner QA");
+  assert.equal("password_hash" in listed, false);
+  assert.equal("password" in listed, false);
+  const denied = await request("/records/officers", signed.cookie, "POST", {
+    data: {
+      officer_name: "Forbidden",
+      designation: "auditor",
+      office_id: office.id,
+      active: true,
+    },
+  });
+  assert.equal(denied.status, 403);
+  const removed = await request(`/accounts/${signed.body.id}`, admin, "DELETE");
+  assert.equal(removed.status, 200);
+  const retained = (await request("/accounts", admin)).body.find(
+    (account: any) => account.id === signed.body.id,
+  );
+  assert.equal(retained.active, false);
+  assert.equal(retained.owner_id, created.body.id);
+  assert.equal((await request("/auth/me", signed.cookie)).status, 401);
+  assert.equal(
+    (
+      await request("/auth/login", undefined, "POST", {
+        username: credentials.username,
+        password: credentials.password,
+      })
+    ).status,
+    401,
+  );
+  assert(
+    (
+      await pool.query(
+        "SELECT id FROM audit_events WHERE entity_id=$1 AND action='delete_account'",
+        [signed.body.id],
+      )
+    ).rows.length,
+  );
+});
+
 test("the complete API registration workflow verifies a file and persists approved ownership", async () => {
   const cookie = await login("test-admin");
   const owner = await create(
@@ -3011,7 +3072,7 @@ test("training import preserves unrelated records, verifies all workflows and fi
   assert.equal(result.body.historicalOwnershipRows, 14);
   assert.equal(result.body.currentOwnershipRows, 8);
   assert.equal(result.body.expectedApprovalFailures, 2);
-  assert.equal(result.body.accountsCreated, 0);
+  assert.equal(result.body.accountsCreated, 16);
   assert.equal(
     (
       await pool.query("SELECT password_hash FROM users WHERE id=$1", [
@@ -3588,7 +3649,13 @@ test("officer accounts create matching profiles atomically, expose office links 
       active: true,
     },
   });
-  assert.equal(direct.status, 409);
+  assert.equal(direct.status, 201);
+  assert.equal(direct.body.created_account.role, "survey_officer");
+  assert.equal(
+    (await request(`/records/officers/${direct.body.id}`, cookie)).body
+      .account_username,
+    direct.body.created_account.username,
+  );
   const created = await request("/accounts", cookie, "POST", {
     username: "linked-surveyor-qa",
     password,

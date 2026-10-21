@@ -2,7 +2,7 @@
 
 Sign in as an administrator, open your username menu and select **Load training records**. Choose **Load complete training dataset** and keep the panel open until the result appears. The operation uses the database configured on that service: the Render app loads CockroachDB Cloud; localhost loads its configured local database.
 
-The fixed dataset comes from [the manual-entry workbook](MANUAL_DATA_ENTRY.md). It contains 119 manually specified records across six parcels in Chennai and Thanjavur. Approval adds 14 ownership-history rows and five transfer-mutation rows, bringing the registry total to 138 rows when both districts are newly created, plus automatic audit events. Existing exact district/state pairs are reused, reducing newly created rows. Optional test login accounts in the workbook are not created: existing accounts and passwords are preserved, and an administrator can create linked accounts with private passwords separately.
+The fixed dataset comes from [the manual-entry workbook](MANUAL_DATA_ENTRY.md). It contains 119 manually specified records across six parcels in Chennai and Thanjavur. Approval adds 14 ownership-history rows and five transfer-mutation rows, bringing the registry total to 138 rows when both districts are newly created, plus automatic audit events. Existing exact district/state pairs are reused, reducing newly created rows. The eight imported owners and eight officers each receive a numbered, automatically linked login. Existing accounts and passwords are preserved.
 
 ## Expected result
 
@@ -37,7 +37,7 @@ The pending registration intentionally lacks uploaded/verified evidence. The pro
 - A successful import writes an audit marker with the signed-in administrator as actor. Repeating the import returns **Already loaded** without adding duplicates or rewriting history.
 - The import verifies exact ownership periods, source/end transactions, final ownership totals, transaction states, latest survey areas and certificate claim snapshots before commit.
 - Public users see only the four Registered parcels and the existing limited public projection. Imported identity/contact information, precise locations, documents and claims remain restricted by the existing role rules.
-- No schema changes, new tables or login accounts are required.
+- No schema changes or new tables are required. New owner/officer accounts are created atomically with their profiles.
 
 ## Sample attachment recovery on Render Free
 

@@ -32,9 +32,11 @@ All queries use the same row scopes as record APIs. Audit events capture the off
 
 ## Accounts
 
-Administrators manage **User accounts** from the username menu. The list shows the linked owner/officer, office and officer contact fields. The uncovered-officer list starts creation directly from the existing profile. The account form also creates a new officer, office link and login atomically when needed. **Link profile** repairs an existing active account without replacing its username, password or role. Active officer/owner profiles can have only one active account through the account APIs, enforced within serializable transactions and profile locks.
+Administrators manage **User accounts** from the username menu. Active accounts are grouped in collapsible role sections, with a role dropdown, name/username/office search and pagination for each selected role. **Unavailable** separately shows deleted and disabled accounts.
 
-**Delete account** immediately revokes sign-in and existing cookie access. An account that has never acted in an audit event is removed. An account referenced by audit history is retained as inactive with an unusable replacement credential; audit records and registry history remain intact. The signed-in administrator cannot delete their own account.
+Creating an owner or officer through its registry form creates a numbered login in the same serializable transaction. User accounts can also create a new profile and login together. The role and office are linked automatically; there is no Link profile action in the interface. The successful creation response shows the new login details once. Existing accounts and passwords remain unchanged. Numbered accounts follow this demonstration's chosen convention: a capitalized username followed by `@landledger`; retired usernames remain reserved. Plaintext passwords are never stored in profile records, account listings or audit summaries.
+
+**Delete account** immediately disables sign-in and existing sessions. Every account row is retained as unavailable with its original username, role and profile link, plus an unusable replacement password hash. Audit references remain intact even when the account had not previously acted. Re-enabling an officer profile does not restore deliberately deleted accounts. The signed-in administrator cannot delete their own account.
 
 The repeatable migration expands the existing officer designation check to include `bank_verifier` and permits a bank account’s existing officer foreign key. It preserves all tables, rows, passwords and 37 foreign keys. It does not infer an office for legacy bank accounts.
 

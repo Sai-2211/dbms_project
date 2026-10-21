@@ -18,6 +18,7 @@ import {
   registrar,
   today,
 } from "./business.js";
+import { ensureProfileAccount } from "./auto-accounts.js";
 
 export const trainingDatasetId = "tn-manual-entry-v1";
 type Row = Record<string, any>;
@@ -216,6 +217,15 @@ export async function importTrainingDataset(
           );
         }
         const row = await insert(client, input.key, data);
+        if (["owners", "officers"].includes(input.key)) {
+          await ensureProfileAccount(
+            client,
+            actor,
+            input.key as "owners" | "officers",
+            row,
+          );
+          count("users");
+        }
         rows.set(input.alias, row);
         count(input.key);
         await audit(client, actor, "create", input.key, row.id, {
@@ -513,7 +523,7 @@ export async function importTrainingDataset(
         historicalOwnershipRows: 14,
         expectedApprovalFailures,
         uploadedDocuments: 13,
-        accountsCreated: 0,
+        accountsCreated: created.users || 0,
       };
       await audit(client, actor, "import_training_dataset", "users", actor.id, {
         dataset: trainingDatasetId,

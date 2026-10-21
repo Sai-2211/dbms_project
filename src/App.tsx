@@ -52,6 +52,7 @@ import { api, downloadFile } from "./api";
 import { useLiveUpdates } from "./useLiveUpdates";
 import { csvCell } from "./csv";
 import { updateRecordField } from "./recordForm";
+import type { CreatedLogin } from "../server/auto-accounts";
 import PublicPortal from "./PublicPortal";
 import Drawer from "./Drawer";
 const SchemaExplorer = lazy(() => import("./SchemaExplorer"));
@@ -757,6 +758,7 @@ function Workspace({
     key: ++nextFrame.current,
   });
   const [accountDefaults, setAccountDefaults] = useState<Row | undefined>();
+  const [createdLogin, setCreatedLogin] = useState<CreatedLogin | null>(null);
   const [utility, setUtility] = useState(false);
   const [accounts, setAccounts] = useState(false);
   const [trainingImport, setTrainingImport] = useState(false);
@@ -843,10 +845,6 @@ function Workspace({
     setAccounts(true);
   }
   function openCreate(key: string, defaults?: Row) {
-    if (key === "officers") {
-      openAccount({ role: "survey_officer" });
-      return;
-    }
     setDrawers([makeFrame({ resource: key, create: true, defaults })]);
   }
   function openRecord(key: string, row: Row) {
@@ -1093,7 +1091,7 @@ function Workspace({
             actor={actor}
             lookups={lookups}
             resources={resources}
-            active={!accounts && index === drawers.length - 1}
+            active={!accounts && !createdLogin && index === drawers.length - 1}
             revision={revision}
             onClose={() => setDrawers([])}
             onBack={
@@ -1135,21 +1133,30 @@ function Workspace({
               visitRecord(key, undefined, defaults)
             }
             onOpenRelated={(key, row) => visitRecord(key, row)}
-            onOpenAccount={openAccount}
+            onCreatedLogin={setCreatedLogin}
           />
         );
       })}
       {accounts && (
         <AccountsDrawer
+          active={!createdLogin}
           defaults={accountDefaults}
           liveRevision={revision}
           lookups={lookups}
           actor={actor}
+          resources={resources}
+          onCreatedLogin={setCreatedLogin}
           onClose={() => setAccounts(false)}
           onChanged={changed}
         />
       )}{" "}
       {help && <Guide onClose={() => setHelp(false)} />}{" "}
+      {createdLogin && (
+        <LoginDetails
+          login={createdLogin}
+          onClose={() => setCreatedLogin(null)}
+        />
+      )}
       {trainingImport && (
         <TrainingImportDrawer
           onClose={() => setTrainingImport(false)}
@@ -1474,8 +1481,8 @@ function DashboardPage({
             <div>
               <h3>All registry records</h3>
               <p>
-                Complete coverage across offices and departments. Manage account
-                links from User accounts.
+                Complete coverage across offices and departments. Manage grouped
+                user accounts and login access.
               </p>
             </div>
           </div>
@@ -1485,9 +1492,7 @@ function DashboardPage({
                 <strong>{data.accounts.active}</strong> active logins ·{" "}
                 <strong>{data.accounts.total}</strong> total accounts ·{" "}
                 <strong>{data.accounts.uncovered_officers}</strong> officers
-                without accounts ·{" "}
-                <strong>{data.accounts.unlinked_staff}</strong> staff profiles
-                to link
+                without active access
               </p>
               <button
                 className="button secondary small"
@@ -1879,10 +1884,7 @@ function RecordsPage({
           {r.canWrite && (
             <button className="button primary" onClick={onCreate}>
               <Plus size={17} />
-              Add{" "}
-              {r.key === "officers"
-                ? "officer account"
-                : r.singular.toLowerCase()}
+              Add {r.singular.toLowerCase()}
             </button>
           )}
         </div>
@@ -2236,7 +2238,7 @@ function RecordDrawer({
   onBack,
   backLabel,
   navigation,
-  onOpenAccount,
+  onCreatedLogin,
 }: {
   resource: Meta;
   initial?: Row;
@@ -2254,7 +2256,7 @@ function RecordDrawer({
   onBack?: () => void;
   backLabel?: string;
   navigation?: ReactNode;
-  onOpenAccount: (defaults?: Row) => void;
+  onCreatedLogin: (login: CreatedLogin) => void;
 }) {
   const [row, setRow] = useState<Row | undefined>(initial);
   const [editing, setEditing] = useState(!!create);
@@ -2435,6 +2437,7 @@ function RecordDrawer({
       );
       setRow(value);
       setEditing(false);
+      if (value.created_account) onCreatedLogin(value.created_account);
       onChanged();
       (onBack || onClose)();
     } catch (e) {
@@ -2600,7 +2603,9 @@ function RecordDrawer({
                     ? "Saving records a finalized assessment under the selected officer. Future assessments are added as new records."
                     : r.key === "properties"
                       ? "Ownership is assigned through an approved registration transaction."
-                      : "Required fields are marked with an asterisk. Records are validated before saving."}
+                      : ["owners", "officers"].includes(r.key) && create
+                        ? "A numbered login account is created and linked automatically when you save. Its login details appear after saving."
+                        : "Required fields are marked with an asterisk. Records are validated before saving."}
             </div>
           </form>
         ) : (
@@ -2667,25 +2672,6 @@ function RecordDrawer({
                   <dd>{date(row.created_at || row.occurred_at)}</dd>
                 </div>
               </dl>
-              {r.key === "officers" &&
-                actor.role === "administrator" &&
-                !row.account_username && (
-                  <section className="detail-section">
-                    <p>This officer record has no login account yet.</p>
-                    <button
-                      className="button primary small"
-                      onClick={() =>
-                        onOpenAccount({
-                          role: row.designation,
-                          officer_id: row.id,
-                          profile_mode: "existing",
-                        })
-                      }
-                    >
-                      Create linked officer account
-                    </button>
-                  </section>
-                )}
               {r.key === "documents" && (
                 <section className="detail-section">
                   <h4>Digital copy</h4>
@@ -3132,41 +3118,105 @@ function TrainingImportDrawer({
   );
 }
 
+const accountRoleOptions = [
+  ["owner", "Owners"],
+  ["survey_officer", "Survey officers"],
+  ["valuation_officer", "Valuation officers"],
+  ["sub_registrar", "Sub-registrars"],
+  ["bank_verifier", "Bank verifiers"],
+  ["auditor", "Auditors"],
+  ["administrator", "Administrators"],
+  ["public_viewer", "Public users"],
+];
+
+function LoginDetails({
+  login,
+  onClose,
+}: {
+  login: CreatedLogin;
+  onClose: () => void;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <Drawer
+      title="Account created and linked"
+      subtitle={login.profile_name}
+      onClose={onClose}
+    >
+      <div className="drawer-body login-details">
+        <p>
+          Your new {nice(login.role).toLowerCase()} profile and login were saved
+          together.
+        </p>
+        <dl className="detail-grid">
+          <div>
+            <dt>Username</dt>
+            <dd>
+              <code>{login.username}</code>
+            </dd>
+          </div>
+          <div>
+            <dt>Password</dt>
+            <dd>
+              <code>{visible ? login.password : "••••••••••••"}</code>
+            </dd>
+          </div>
+        </dl>
+        <button
+          className="button secondary small"
+          onClick={() => setVisible((v) => !v)}
+        >
+          {visible ? <EyeOff size={16} /> : <Eye size={16} />}
+          {visible ? "Hide password" : "Show password"}
+        </button>
+        <p>
+          Save these details before closing. Sign in through Department /
+          administrator.
+        </p>
+      </div>
+      <div className="drawer-footer">
+        <button className="button primary" onClick={onClose}>
+          Done
+        </button>
+      </div>
+    </Drawer>
+  );
+}
+
 function AccountsDrawer({
+  active,
   defaults,
   liveRevision,
   lookups,
+  resources,
   actor,
   onClose,
   onChanged,
+  onCreatedLogin,
 }: {
+  active: boolean;
   defaults?: Row;
   liveRevision: number;
   lookups: Lookups;
+  resources: Meta[];
   actor: Actor;
   onClose: () => void;
   onChanged: (s?: string) => void;
+  onCreatedLogin: (login: CreatedLogin) => void;
 }) {
   const [revision, setRevision] = useState(0);
   const accounts = useLoad<Row[]>("/accounts", revision + liveRevision);
   const [adding, setAdding] = useState(!!defaults);
-  const [linking, setLinking] = useState<Row | null>(null);
-  const empty = {
-    username: "",
-    password: "",
-    role: "public_viewer",
-    owner_id: "",
-    officer_id: "",
-    profile_mode: "new",
-    officer_name: "",
-    office_id: "",
-    email: "",
-    phone: "",
-  };
+  const empty = { username: "", password: "", role: "owner" };
   const [data, setData] = useState<Row>({ ...empty, ...defaults });
+  const [profile, setProfile] = useState<Row>({});
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [availability, setAvailability] = useState("active");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const staff = [
     "survey_officer",
     "valuation_officer",
@@ -3174,65 +3224,66 @@ function AccountsDrawer({
     "bank_verifier",
     "auditor",
   ].includes(data.role);
-  const availableLookups = {
-    ...lookups,
-    officers: (lookups.officers || []).filter(
-      (profile) =>
-        !accounts.data?.some(
-          (account) =>
-            account.active &&
-            account.officer_id === profile.id &&
-            account.id !== linking?.id,
+  const profileResource = resources.find(
+    (r) =>
+      r.key === (data.role === "owner" ? "owners" : staff ? "officers" : ""),
+  );
+  const filtered = (accounts.data || [])
+    .filter(
+      (account) =>
+        (availability === "active" ? account.active : !account.active) &&
+        (roleFilter === "all" || account.role === roleFilter) &&
+        [
+          account.username,
+          account.owner_name,
+          account.officer_name,
+          account.office_name,
+          nice(account.role),
+        ].some((value) =>
+          String(value || "")
+            .toLowerCase()
+            .includes(search.trim().toLowerCase()),
         ),
-    ),
-    owners: (lookups.owners || []).filter(
-      (profile) =>
-        !accounts.data?.some(
-          (account) =>
-            account.active &&
-            account.owner_id === profile.id &&
-            account.id !== linking?.id,
-        ),
-    ),
-  };
+    )
+    .sort((a, b) =>
+      a.username.localeCompare(b.username, undefined, { numeric: true }),
+    );
+  const totalPages = Math.max(1, Math.ceil(filtered.length / 10));
+  const currentPage = Math.min(page, totalPages);
+  useEffect(() => setPage(1), [roleFilter, availability, search]);
+
   async function save(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError("");
     try {
-      await api(linking ? `/accounts/${linking.id}` : "/accounts", {
-        method: linking ? "PATCH" : "POST",
-        body: JSON.stringify(
-          linking
-            ? {
-                owner_id: data.owner_id || null,
-                officer_id: data.officer_id || null,
-              }
-            : {
-                username: data.username,
-                password: data.password,
-                role: data.role,
-                ...(data.role === "owner" ? { owner_id: data.owner_id } : {}),
-                ...(staff
-                  ? data.profile_mode === "existing"
-                    ? { officer_id: data.officer_id }
-                    : {
-                        officer: {
-                          officer_name: data.officer_name,
-                          office_id: data.office_id,
-                          email: data.email,
-                          phone: data.phone,
-                        },
-                      }
-                  : {}),
-              },
-        ),
-      });
+      if (profileResource) {
+        const value = await api<Row>(`/records/${profileResource.key}`, {
+          method: "POST",
+          body: JSON.stringify({
+            data: {
+              ...Object.fromEntries(
+                profileResource.fields
+                  .filter((f) => !f.readOnly)
+                  .map((f) => [f.key, profile[f.key] ?? ""]),
+              ),
+              ...(staff ? { designation: data.role, active: true } : {}),
+            },
+          }),
+        });
+        if (value.created_account) onCreatedLogin(value.created_account);
+      } else {
+        await api("/accounts", { method: "POST", body: JSON.stringify(data) });
+      }
       setAdding(false);
-      setLinking(null);
       setRevision((v) => v + 1);
-      onChanged(linking ? "Account profile linked." : "User account created.");
+      onChanged(
+        profileResource
+          ? "Profile and linked account created."
+          : "User account created.",
+      );
       setData(empty);
+      setProfile({});
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -3243,16 +3294,11 @@ function AccountsDrawer({
     setBusy(true);
     setError("");
     try {
-      const result = await api<{ history_retained: boolean }>(
-        `/accounts/${id}`,
-        { method: "DELETE" },
-      );
+      await api(`/accounts/${id}`, { method: "DELETE" });
       setRemoving(null);
       setRevision((v) => v + 1);
       onChanged(
-        result.history_retained
-          ? "Login access deleted. Audit history preserved."
-          : "Account deleted.",
+        "Login access removed. The account is retained under Unavailable for audit history.",
       );
     } catch (e) {
       setError((e as Error).message);
@@ -3260,11 +3306,66 @@ function AccountsDrawer({
       setBusy(false);
     }
   }
+  function accountRow(account: Row) {
+    return (
+      <div key={account.id} className="account-row">
+        <span className="avatar">
+          {account.username.slice(0, 2).toUpperCase()}
+        </span>
+        <div className="account-identity">
+          <strong>{account.username}</strong>
+          <small>
+            {account.officer_name || account.owner_name || nice(account.role)}
+          </small>
+          {account.office_name && <small>{account.office_name}</small>}
+          {(account.email || account.phone) && (
+            <small>
+              {[account.email, account.phone].filter(Boolean).join(" · ")}
+            </small>
+          )}
+        </div>
+        <Badge value={account.active ? "active" : "unavailable"} />
+        {account.active && account.id !== actor.id && (
+          <button
+            className="button danger small"
+            disabled={busy}
+            onClick={() => setRemoving(account.id)}
+          >
+            Delete account
+          </button>
+        )}
+        {removing === account.id && (
+          <div className="account-delete-confirm">
+            <p>
+              Remove login access for {account.username}? Existing sessions will
+              stop working. The account and audit history will remain under
+              Unavailable.
+            </p>
+            <button
+              className="button danger small"
+              disabled={busy}
+              onClick={() => void remove(account.id)}
+            >
+              Confirm deletion
+            </button>
+            <button
+              className="button secondary small"
+              disabled={busy}
+              onClick={() => setRemoving(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
   return (
     <Drawer
       title="User accounts"
-      subtitle="Create accounts, link officers and owners, and remove login access."
+      subtitle="Manage accounts by role. Owner and officer profiles receive linked logins automatically."
       onClose={onClose}
+      active={active}
       wide
     >
       <div className="drawer-body">
@@ -3273,14 +3374,58 @@ function AccountsDrawer({
             {error}
           </p>
         )}
-        {adding || linking ? (
+        {adding ? (
           <form onSubmit={save} className="account-form">
-            <h3>
-              {linking
-                ? `Link profile · ${linking.username}`
-                : "Create account"}
-            </h3>
-            {!linking && (
+            <h3>Create profile and account</h3>
+            <label className="field">
+              <span>Role</span>
+              <select
+                value={data.role}
+                onChange={(e) => {
+                  setData({ ...empty, role: e.target.value });
+                  setProfile({});
+                }}
+              >
+                {accountRoleOptions.map(([role]) => (
+                  <option key={role} value={role}>
+                    {nice(role)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {profileResource ? (
+              <>
+                <p className="muted">
+                  A numbered username and password are created automatically.
+                  The profile and login are linked when you save.
+                </p>
+                {profileResource.fields
+                  .filter(
+                    (f) =>
+                      !f.readOnly && !["designation", "active"].includes(f.key),
+                  )
+                  .map((f) => (
+                    <FieldInput
+                      key={f.key}
+                      field={f}
+                      value={profile[f.key]}
+                      data={profile}
+                      lookups={lookups}
+                      onChange={(value) =>
+                        setProfile((current) =>
+                          updateRecordField(
+                            profileResource,
+                            current,
+                            f.key,
+                            value,
+                            lookups.properties,
+                          ),
+                        )
+                      }
+                    />
+                  ))}
+              </>
+            ) : (
               <>
                 <label className="field">
                   <span>Username</span>
@@ -3300,157 +3445,9 @@ function AccountsDrawer({
                   label="Password · 12–128 characters"
                   autoComplete="new-password"
                   value={data.password}
-                  onChange={(value) => setData({ ...data, password: value })}
+                  onChange={(password) => setData({ ...data, password })}
                   minLength={12}
                 />
-                <label className="field">
-                  <span>Role</span>
-                  <select
-                    value={data.role}
-                    onChange={(e) =>
-                      setData({
-                        ...data,
-                        role: e.target.value,
-                        owner_id: "",
-                        officer_id: "",
-                      })
-                    }
-                  >
-                    {[
-                      "administrator",
-                      "public_viewer",
-                      "owner",
-                      "survey_officer",
-                      "valuation_officer",
-                      "sub_registrar",
-                      "bank_verifier",
-                      "auditor",
-                    ].map((role) => (
-                      <option value={role} key={role}>
-                        {role === "public_viewer"
-                          ? "Public user · read-only"
-                          : nice(role)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </>
-            )}
-            {data.role === "owner" && (
-              <FieldInput
-                field={{
-                  key: "owner_id",
-                  label: "Linked owner",
-                  type: "reference",
-                  reference: "owners",
-                  required: true,
-                }}
-                value={data.owner_id}
-                lookups={availableLookups}
-                data={data}
-                onChange={(v) => setData({ ...data, owner_id: v })}
-              />
-            )}
-            {staff && (
-              <>
-                {!linking && (
-                  <label className="field">
-                    <span>Officer profile</span>
-                    <select
-                      value={data.profile_mode}
-                      onChange={(e) =>
-                        setData({
-                          ...data,
-                          profile_mode: e.target.value,
-                          officer_id: "",
-                        })
-                      }
-                    >
-                      <option value="new">
-                        Create a new officer and account
-                      </option>
-                      <option value="existing">Link an existing officer</option>
-                    </select>
-                  </label>
-                )}
-                {linking || data.profile_mode === "existing" ? (
-                  <>
-                    <FieldInput
-                      field={{
-                        key: "officer_id",
-                        label: "Linked officer",
-                        type: "reference",
-                        reference: "officers",
-                        designation: data.role,
-                        required: true,
-                      }}
-                      value={data.officer_id}
-                      lookups={availableLookups}
-                      data={data}
-                      onChange={(v) => setData({ ...data, officer_id: v })}
-                    />
-                    <p className="muted">
-                      Choose an active officer with the matching designation.
-                      Existing work, contacts and office remain connected.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <FieldInput
-                      field={{
-                        key: "officer_name",
-                        label: "Officer full name",
-                        type: "text",
-                        required: true,
-                      }}
-                      value={data.officer_name}
-                      lookups={lookups}
-                      data={data}
-                      onChange={(v) => setData({ ...data, officer_name: v })}
-                    />
-                    <FieldInput
-                      field={{
-                        key: "office_id",
-                        label: "Office",
-                        type: "reference",
-                        reference: "offices",
-                        required: true,
-                      }}
-                      value={data.office_id}
-                      lookups={lookups}
-                      data={data}
-                      onChange={(v) => setData({ ...data, office_id: v })}
-                    />
-                    <FieldInput
-                      field={{
-                        key: "email",
-                        label: "Officer email",
-                        type: "email",
-                        required: false,
-                      }}
-                      value={data.email}
-                      lookups={lookups}
-                      data={data}
-                      onChange={(v) => setData({ ...data, email: v })}
-                    />
-                    <FieldInput
-                      field={{
-                        key: "phone",
-                        label: "Officer phone",
-                        type: "text",
-                        required: false,
-                      }}
-                      value={data.phone}
-                      lookups={lookups}
-                      data={data}
-                      onChange={(v) => setData({ ...data, phone: v })}
-                    />
-                    <p className="muted">
-                      The officer designation follows the selected role.
-                      Profile, office and login are saved together.
-                    </p>
-                  </>
-                )}
               </>
             )}
             <div className="review-actions">
@@ -3460,14 +3457,17 @@ function AccountsDrawer({
                 disabled={busy}
                 onClick={() => {
                   setAdding(false);
-                  setLinking(null);
                   setError("");
                 }}
               >
                 Cancel
               </button>
               <button className="button primary" disabled={busy}>
-                {linking ? "Save profile link" : "Create account"}
+                {busy
+                  ? "Saving…"
+                  : profileResource
+                    ? "Create profile and account"
+                    : "Create account"}
               </button>
             </div>
           </form>
@@ -3477,6 +3477,7 @@ function AccountsDrawer({
               className="button primary"
               onClick={() => {
                 setData(empty);
+                setProfile({});
                 setAdding(true);
                 setError("");
               }}
@@ -3490,135 +3491,122 @@ function AccountsDrawer({
               <ErrorPanel message={accounts.error} />
             ) : (
               <>
-                <div className="accounts-list">
-                  {accounts.data?.map((account) => (
-                    <div key={account.id} className="account-row">
-                      <span className="avatar">
-                        {account.username.slice(0, 2).toUpperCase()}
-                      </span>
-                      <div className="account-identity">
-                        <strong>{account.username}</strong>
-                        <small>
-                          {nice(account.role)} ·{" "}
-                          {account.officer_name ||
-                            account.owner_name ||
-                            (["administrator", "public_viewer"].includes(
-                              account.role,
-                            )
-                              ? "No profile required"
-                              : "Profile link required")}
-                        </small>
-                        {account.office_name && (
-                          <small>{account.office_name}</small>
-                        )}
-                        {(account.email || account.phone) && (
-                          <small>
-                            {[account.email, account.phone]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </small>
-                        )}
-                      </div>
-                      <Badge value={account.active ? "active" : "inactive"} />
-                      {account.active &&
-                        !["administrator", "public_viewer"].includes(
-                          account.role,
-                        ) && (
-                          <button
-                            className="button secondary small"
-                            disabled={busy}
-                            onClick={() => {
-                              setLinking(account);
-                              setData({ ...empty, ...account, password: "" });
-                              setError("");
-                            }}
-                          >
-                            Link profile
-                          </button>
-                        )}
-                      {account.active && account.id !== actor.id && (
-                        <button
-                          className="button danger small"
-                          disabled={busy}
-                          onClick={() => setRemoving(account.id)}
-                        >
-                          Delete account
-                        </button>
-                      )}
-                      {removing === account.id && (
-                        <div className="account-delete-confirm">
-                          <p>
-                            Delete login access for {account.username}? Existing
-                            sessions will stop working. Any audit history will
-                            be preserved.
-                          </p>
-                          <button
-                            className="button danger small"
-                            disabled={busy}
-                            onClick={() => void remove(account.id)}
-                          >
-                            Confirm deletion
-                          </button>
-                          <button
-                            className="button secondary small"
-                            disabled={busy}
-                            onClick={() => setRemoving(null)}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                <div
+                  className="account-availability"
+                  aria-label="Account availability"
+                >
+                  <button
+                    className={availability === "active" ? "selected" : ""}
+                    onClick={() => setAvailability("active")}
+                  >
+                    Active ({accounts.data?.filter((a) => a.active).length || 0}
+                    )
+                  </button>
+                  <button
+                    className={availability === "unavailable" ? "selected" : ""}
+                    onClick={() => setAvailability("unavailable")}
+                  >
+                    Unavailable (
+                    {accounts.data?.filter((a) => !a.active).length || 0})
+                  </button>
                 </div>
-                <section className="detail-section">
-                  <h3>Officers without an active account</h3>
-                  <p className="muted">
-                    Create a login for the existing profile to keep its work and
-                    office connected.
-                  </p>
-                  <div className="related-list">
-                    {(lookups.officers || [])
-                      .filter(
-                        (profile) =>
-                          profile.active &&
-                          !accounts.data?.some(
-                            (account) =>
-                              account.active &&
-                              account.officer_id === profile.id,
-                          ),
-                      )
-                      .map((profile) => (
-                        <button
-                          key={profile.id}
-                          onClick={() => {
-                            setData({
-                              ...empty,
-                              role: profile.designation || "survey_officer",
-                              officer_id: profile.id,
-                              profile_mode: "existing",
-                            });
-                            setAdding(true);
-                            setError("");
-                          }}
-                        >
-                          <div>
-                            <strong>{profile.label}</strong>
-                            <small>
-                              {nice(profile.designation)} ·{" "}
-                              {
-                                lookups.offices?.find(
-                                  (office) => office.id === profile.office_id,
-                                )?.label
-                              }
-                            </small>
-                          </div>
-                          <span>Create linked account</span>
-                          <Plus size={16} />
-                        </button>
+                <div className="account-filters">
+                  <label className="field">
+                    <span>Account role</span>
+                    <select
+                      value={roleFilter}
+                      onChange={(e) => setRoleFilter(e.target.value)}
+                    >
+                      <option value="all">All roles</option>
+                      {accountRoleOptions.map(([role, label]) => (
+                        <option key={role} value={role}>
+                          {label}
+                        </option>
                       ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Search accounts</span>
+                    <input
+                      type="search"
+                      placeholder="Name, username or office…"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
+                  </label>
+                </div>
+                {availability === "unavailable" && (
+                  <p className="account-retention-note">
+                    Deleted and disabled accounts cannot sign in. Their
+                    identities and previous audit records are retained.
+                  </p>
+                )}
+                {filtered.length === 0 ? (
+                  <Empty
+                    title="No matching accounts"
+                    description="Choose another role or availability, or change your search."
+                  />
+                ) : roleFilter === "all" ? (
+                  <div className="account-groups">
+                    {accountRoleOptions.map(([role, label]) => {
+                      const group = filtered.filter((a) => a.role === role);
+                      return group.length ? (
+                        <details
+                          key={availability + role}
+                          className="account-group"
+                        >
+                          <summary>
+                            {label}
+                            <span>{group.length}</span>
+                            <ChevronDown size={16} />
+                          </summary>
+                          <div className="accounts-list">
+                            {group.slice(0, 5).map(accountRow)}
+                          </div>
+                          {group.length > 5 && (
+                            <button
+                              className="text-button"
+                              onClick={() => setRoleFilter(role)}
+                            >
+                              View all {group.length} {label.toLowerCase()}
+                              <ArrowRight size={15} />
+                            </button>
+                          )}
+                        </details>
+                      ) : null;
+                    })}
                   </div>
-                </section>
+                ) : (
+                  <>
+                    <div className="accounts-list">
+                      {filtered
+                        .slice((currentPage - 1) * 10, currentPage * 10)
+                        .map(accountRow)}
+                    </div>
+                    <div className="table-footer">
+                      <span>
+                        {filtered.length} accounts · page {currentPage} of{" "}
+                        {totalPages}
+                      </span>
+                      <div>
+                        <button
+                          aria-label="Previous account page"
+                          disabled={currentPage <= 1}
+                          onClick={() => setPage(currentPage - 1)}
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+                        <button
+                          aria-label="Next account page"
+                          disabled={currentPage >= totalPages}
+                          onClick={() => setPage(currentPage + 1)}
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </>
             )}
           </>

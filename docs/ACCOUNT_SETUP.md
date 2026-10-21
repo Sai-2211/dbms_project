@@ -60,10 +60,8 @@ For a free service, set `UPLOAD_DIR=uploads` and do not attach a paid disk. This
 Use **Department / administrator** when signing in. Open the top-right account menu → **User accounts → Add user account**. Select **Public user · read-only** for a general visitor; choose a username and private password of 12–128 characters. The visitor signs in through **Public user** and can view safe registered-property information only. Existing owner and officer accounts use the department area and require their matching linked profiles. Visitors may alternatively select **Public user → Create account** to register a read-only account themselves. See [PUBLIC_SIGNUP.md](PUBLIC_SIGNUP.md).
 
 
-## Officer links and account deletion
+## Owner and officer accounts
 
-All new staff accounts, including bank verifiers, require an active officer profile with the matching designation and office. User accounts shows existing profile/office links and officers without accounts. Use **Link profile** to repair an active account without replacing its credentials. **Delete account** revokes access immediately; referenced audit identities remain inactive so history stays connected. See [Role access and workflows](ROLE_ACCESS.md).
+Create a new owner or officer from the corresponding registry tab, or select its role in **User accounts → Add user account** and enter the profile details. The profile and numbered login are created and linked together; save the login details displayed after creation. No separate profile-linking step is needed. Existing accounts and passwords remain unchanged.
 
-## Staff profiles and office links
-
-For a Survey officer, Valuation officer, Sub-registrar, Bank verifier or Auditor, create the officer profile inside the account form and select its office. The role supplies the designation. Alternatively link an existing historical officer with no login. The officer and account are committed together; duplicate usernames or other failures do not leave an orphan profile. [ROLE_TESTING.md](ROLE_TESTING.md) lists exact permissions and manual cases.
+User accounts groups active accounts by role and supports role filtering, search and pagination. Deleted and disabled accounts are retained under **Unavailable**, preserving their identity and audit history while preventing sign-in. See [Role access and workflows](ROLE_ACCESS.md).

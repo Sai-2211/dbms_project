@@ -2931,6 +2931,87 @@ textarea {
 .account-delete-confirm .button {
   margin-right: 8px;
 }
+.account-availability {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 24px 0 18px;
+}
+.account-availability button {
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--muted);
+  border-radius: 7px;
+  padding: 10px 14px;
+  font-size: 11px;
+}
+.account-availability button.selected {
+  background: var(--forest);
+  border-color: var(--forest);
+  color: white;
+}
+.account-filters {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(160px, 2fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.account-group {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  margin-top: 12px;
+  padding: 0 16px;
+}
+.account-group summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 17px 0;
+  cursor: pointer;
+  list-style: none;
+  font-size: 12px;
+  font-weight: 650;
+}
+.account-group summary::-webkit-details-marker {
+  display: none;
+}
+.account-group summary span {
+  margin-left: auto;
+  background: #edf2e7;
+  border-radius: 12px;
+  padding: 3px 9px;
+  font-size: 10px;
+}
+.account-group[open] summary svg {
+  transform: rotate(180deg);
+}
+.account-group .accounts-list {
+  margin-top: 0;
+}
+.account-group > .text-button {
+  margin: 12px 0 18px;
+}
+.account-retention-note,
+.login-details p {
+  font-size: 11px;
+  line-height: 1.8;
+  color: var(--muted);
+}
+.login-details .detail-grid {
+  margin: 24px 0;
+}
+.login-details > p:last-child {
+  margin-top: 20px;
+}
+.badge-unavailable {
+  color: #8a7267;
+  background: #f3eee9;
+}
+@media (max-width: 440px) {
+  .account-filters {
+    grid-template-columns: 1fr;
+  }
+}
 @media (max-width: 760px) {
   .work-grid,
   .coverage-grid {

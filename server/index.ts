@@ -35,6 +35,7 @@ import { dashboard } from "./dashboard.js";
 import { publicPortal } from "./public-portal.js";
 import { validatePublicSignup } from "./signup.js";
 import { createAccount, officerAccountDetails } from "./accounts.js";
+import { ensureProfileAccount } from "./auto-accounts.js";
 import {
   importTrainingDataset,
   trainingDatasetId,
@@ -423,12 +424,6 @@ app.post("/api/records/:key", async (req, res) => {
   const r = getResource(req.params.key);
   demand(canWrite(req.actor, r), "You cannot create this record.", 403);
   const data = validateRecord(r, req.body?.data);
-  demand(
-    r.key !== "officers",
-    "Create an officer through User accounts so the profile and login stay linked.",
-    409,
-  );
-
   const result = await transaction(async (client) => {
     await validateRelations(client, req.actor, r, data);
     if (r.key === "certificates") {
@@ -449,6 +444,14 @@ app.post("/api/records/:key", async (req, res) => {
       );
     }
     const row = await insert(client, r.key, data);
+    const createdAccount = ["owners", "officers"].includes(r.key)
+      ? await ensureProfileAccount(
+          client,
+          req.actor,
+          r.key as "owners" | "officers",
+          row,
+        )
+      : null;
     if (req.actor.role === "owner" && r.key === "properties")
       await insert(client, "applications", {
         property_id: row.id,
@@ -488,7 +491,10 @@ app.post("/api/records/:key", async (req, res) => {
         (k) => !["snapshot_summary"].includes(k),
       ),
     });
-    return redact(req.actor, r, row);
+    return {
+      ...redact(req.actor, r, row),
+      ...(createdAccount ? { created_account: createdAccount } : {}),
+    };
   });
   res.status(201).json(result);
 });
@@ -988,12 +994,10 @@ app.delete("/api/accounts/:id", async (req, res) => {
         [account.id],
       )
     ).rows.length;
-    if (retained)
-      await client.query(
-        "UPDATE users SET active=false,password_hash=$1,updated_at=now() WHERE id=$2",
-        [hashPassword(randomUUID()), account.id],
-      );
-    else await client.query("DELETE FROM users WHERE id=$1", [account.id]);
+    await client.query(
+      "UPDATE users SET active=false,password_hash=$1,updated_at=now() WHERE id=$2",
+      [hashPassword(randomUUID()), account.id],
+    );
     await audit(client, req.actor, "delete_account", "users", account.id, {
       role: account.role,
       history_retained: retained,

@@ -16,6 +16,8 @@ const { insert } = await import("../../server/business.js");
 const { hashPassword, verifyPassword } = await import("../../server/auth.js");
 const { provisionOfficers } =
   await import("../../server/provision-officers.js");
+const { provisionProfileAccounts, ensureProfileAccount } =
+  await import("../../server/auto-accounts.js");
 let actor: Actor;
 let originalHash: string;
 let bankId: string;
@@ -73,6 +75,7 @@ before(async () => {
     bankId = bank.id;
   });
 });
+
 after(async () => {
   await pool.end();
   await control.query(`DROP DATABASE IF EXISTS ${name} CASCADE`);
@@ -149,5 +152,109 @@ test("provisioning previews without mutations, preserves credentials and contact
   assert.deepEqual(
     (await pool.query("SELECT * FROM users ORDER BY id")).rows,
     snapshot,
+  );
+});
+
+test("automatic backfill creates missing owner and officer logins without replacing existing credentials", async () => {
+  const existing = (
+    await pool.query("SELECT id,password_hash FROM users ORDER BY id")
+  ).rows;
+  const office = (await pool.query("SELECT id FROM offices LIMIT 1")).rows[0];
+  await transaction(async (client) => {
+    for (const name of ["New owner A", "New owner B"])
+      await insert(client, "owners", {
+        owner_name: name,
+        identification_no: randomUUID(),
+        address: "Test",
+      });
+    await insert(client, "officers", {
+      officer_name: "Another auditor",
+      designation: "auditor",
+      office_id: office.id,
+      active: true,
+    });
+  });
+  const logins = await transaction((client) =>
+    provisionProfileAccounts(client, actor),
+  );
+  assert.equal(logins.length, 3);
+  for (const login of logins) {
+    const account = (
+      await pool.query("SELECT * FROM users WHERE username=$1", [
+        login.username,
+      ])
+    ).rows[0];
+    assert(verifyPassword(login.password, account.password_hash));
+    assert(account.owner_id || account.officer_id);
+  }
+  for (const account of existing)
+    assert.equal(
+      (
+        await pool.query("SELECT password_hash FROM users WHERE id=$1", [
+          account.id,
+        ])
+      ).rows[0].password_hash,
+      account.password_hash,
+    );
+  const retired = logins.find((login) => login.role === "owner")!;
+  await pool.query("UPDATE users SET active=false WHERE username=$1", [
+    retired.username,
+  ]);
+  assert.deepEqual(
+    await transaction((client) => provisionProfileAccounts(client, actor)),
+    [],
+  );
+  assert.equal(
+    (
+      await pool.query("SELECT active FROM users WHERE username=$1", [
+        retired.username,
+      ])
+    ).rows[0].active,
+    false,
+  );
+  const audit = JSON.stringify(
+    (await pool.query("SELECT summary FROM audit_events")).rows,
+  );
+  assert(logins.every((login) => !audit.includes(login.password)));
+});
+
+test("concurrent profile creations allocate different numbered accounts and failures roll back both records", async () => {
+  const results = await Promise.all(
+    ["Concurrent A", "Concurrent B"].map((owner_name) =>
+      transaction(async (client) => {
+        const owner = await insert(client, "owners", {
+          owner_name,
+          identification_no: randomUUID(),
+          address: "Test",
+        });
+        return ensureProfileAccount(client, actor, "owners", owner);
+      }),
+    ),
+  );
+  assert.notEqual(results[0]!.username, results[1]!.username);
+  const before = (
+    await pool.query(
+      "SELECT (SELECT count(*) FROM owners) AS owners,(SELECT count(*) FROM users) AS users",
+    )
+  ).rows[0];
+  await assert.rejects(
+    transaction(async (client) => {
+      const owner = await insert(client, "owners", {
+        owner_name: "Rollback",
+        identification_no: randomUUID(),
+        address: "Test",
+      });
+      await ensureProfileAccount(client, actor, "owners", owner);
+      throw new Error("intentional rollback");
+    }),
+    /intentional rollback/,
+  );
+  assert.deepEqual(
+    (
+      await pool.query(
+        "SELECT (SELECT count(*) FROM owners) AS owners,(SELECT count(*) FROM users) AS users",
+      )
+    ).rows[0],
+    before,
   );
 });
